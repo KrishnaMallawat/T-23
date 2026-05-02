@@ -3,229 +3,447 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CuratedSlot - Organiser Dashboard</title>
+    <title>CuratedSlot - Organiser Configuration</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .action-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card-builder {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+    </style>
 </head>
 <body>
 
 <div class="main-wrapper">
-    <div class="top-nav">
-        <h2>Curated<span style="color: var(--accent-color)">Slot</span> <span style="font-size:1rem; font-weight:400; color:var(--text-secondary)">| Organiser Panel</span></h2>
+    <div class="page-header">
+        <div style="display:flex; align-items:center; gap: 2rem;">
+            <h2>Curated<span style="color: var(--accent-color)">Slot</span></h2>
+            <div class="tabs-header" style="margin:0; border:none; gap:1.5rem;">
+                <button class="tab-btn active">App logo and name</button>
+                <button class="tab-btn" onclick="document.getElementById('bookings-panel').classList.toggle('hidden')">Reporting (Bookings)</button>
+                <button class="tab-btn">Settings</button>
+            </div>
+        </div>
         <div style="display: flex; align-items: center; gap: 1rem;">
+            <span class="badge badge-completed" id="status-badge" style="display:none;">Published</span>
             <span class="text-secondary">Hello, <strong id="user-name" style="color: var(--text-primary)"></strong></span>
             <button onclick="logout()" class="btn btn-outline btn-small">Sign Out</button>
         </div>
     </div>
 
-    <div class="grid-2">
-        <!-- Left Column: Settings & Setup -->
-        <div>
-            <!-- Working Hours -->
-            <div class="card">
-                <h3>1. Setup Working Hours</h3>
-                <p class="text-secondary" style="font-size: 0.85rem;">Define when you are available for automated slot generation.</p>
-                <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
-                    <select id="wh-day" style="flex:1; margin:0;">
-                        <option value="0">Monday</option>
-                        <option value="1">Tuesday</option>
-                        <option value="2">Wednesday</option>
-                        <option value="3">Thursday</option>
-                        <option value="4">Friday</option>
-                        <option value="5">Saturday</option>
-                        <option value="6">Sunday</option>
+    <!-- Hidden Bookings Panel -->
+    <div id="bookings-panel" class="card hidden" style="margin-bottom: 2rem; background: #F8FAFC;">
+        <h3>Upcoming Bookings</h3>
+        <div id="my-bookings"><p class="text-secondary">Loading...</p></div>
+    </div>
+
+    <div class="action-bar">
+        <button class="btn btn-outline" onclick="clearService()">New</button>
+        <button class="btn btn-outline" onclick="previewService()" id="btn-preview" disabled>Preview</button>
+        <button class="btn btn-outline" onclick="togglePublish()" id="btn-publish" disabled>Publish</button>
+        <div style="flex:1;"></div>
+        <select id="service-selector" onchange="loadService(this.value)" class="custom-select" style="width: 250px; margin:0;">
+            <option value="">-- Select an Appointment Type --</option>
+        </select>
+    </div>
+
+    <div class="card-builder">
+        <!-- General Section -->
+        <p class="text-secondary" style="font-size:0.85rem; text-transform:uppercase; font-weight:600; letter-spacing:1px; margin-bottom:0.5rem;">Appointment Title</p>
+        <input type="text" id="apt-title" placeholder="Dental care" style="font-size:2rem; font-weight:600; border:none; border-bottom:1px dashed var(--border-color); padding-left:0; border-radius:0; color:var(--text-primary); margin-bottom: 2rem;" onchange="saveGeneral()">
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 4rem; margin-bottom: 3rem;">
+            <div>
+                <div style="display:flex; align-items:center; margin-bottom:1.5rem;">
+                    <label style="width:100px; color:var(--text-secondary);">Duration</label>
+                    <input type="number" id="apt-duration" value="30" style="width:80px; margin:0;" onchange="saveGeneral()">
+                    <span style="margin-left:0.5rem; color:var(--text-secondary);">Minutes</span>
+                </div>
+                <div style="display:flex; align-items:start; margin-bottom:1.5rem;">
+                    <label style="width:100px; color:var(--text-secondary); margin-top:0.5rem;">Location</label>
+                    <textarea id="apt-desc" placeholder="Doctor's Office..." style="margin:0; flex:1;" rows="3" onchange="saveGeneral()"></textarea>
+                </div>
+            </div>
+            <div>
+                <!-- Mockup Elements just for visuals -->
+                <div style="display:flex; align-items:center; margin-bottom:1rem; gap:1rem;">
+                    <span style="color:var(--text-secondary); width:80px;">Book</span>
+                    <label><input type="radio" name="book" checked> User</label>
+                    <label><input type="radio" name="book"> Resources</label>
+                </div>
+                <div style="display:flex; align-items:center; margin-bottom:1rem; gap:1rem;">
+                    <span style="color:var(--text-secondary); width:80px;">Assignment</span>
+                    <label><input type="radio" name="assign" checked> Automatically</label>
+                    <label><input type="radio" name="assign"> By visitor</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Tabs -->
+        <div class="tabs-header">
+            <button class="tab-btn active" onclick="switchConfigTab('tab-schedule', this)">Schedule</button>
+            <button class="tab-btn" onclick="switchConfigTab('tab-question', this)">Questions</button>
+            <button class="tab-btn" onclick="switchConfigTab('tab-options', this)">Options</button>
+            <button class="tab-btn" onclick="switchConfigTab('tab-misc', this)">Misc</button>
+        </div>
+
+        <div id="tab-schedule" class="config-tab">
+            <div style="display:flex; gap:2rem; margin-bottom: 2rem;">
+                <label style="font-weight:600; font-size:1.1rem; display:flex; align-items:center; gap:0.5rem;">
+                    <input type="radio" name="scheduletype" checked> Weekly
+                </label>
+                <label style="font-weight:600; font-size:1.1rem; display:flex; align-items:center; gap:0.5rem; color:var(--text-secondary);">
+                    <input type="radio" name="scheduletype"> Flexible
+                </label>
+            </div>
+            
+            <div id="weekly-hours-container" style="max-width: 600px;">
+                <p class="text-secondary">Loading schedule...</p>
+            </div>
+            <button onclick="saveAllWorkingHours()" class="btn btn-primary" style="margin-top:1.5rem;">Save Schedule</button>
+            <div id="wh-msg" class="hidden alert" style="margin-top:1rem;"></div>
+        </div>
+
+        <div id="tab-question" class="config-tab hidden">
+            <p class="text-secondary" style="margin-bottom:1rem;">Questions which are defined in the backend of the appointment Config</p>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Question</th>
+                        <th>Answer type</th>
+                        <th>Mandatory</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="questions-list">
+                    <tr><td colspan="4" class="text-secondary">Save the service first to add questions.</td></tr>
+                </tbody>
+            </table>
+            
+            <div id="add-question-box" class="hidden" style="background:var(--bg-color); padding:1.5rem; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-top:1rem;">
+                <h4 style="margin-bottom:1rem;">Add a question</h4>
+                <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+                    <select id="q-type" class="custom-select" style="width:200px; margin:0;">
+                        <option value="Single line text">Single line text</option>
+                        <option value="Multi-line text">Multi-line text</option>
                     </select>
-                    <input type="time" id="wh-start" value="09:00" style="flex:1; margin:0;">
-                    <input type="time" id="wh-end" value="17:00" style="flex:1; margin:0;">
+                    <input type="text" id="q-text" placeholder="Anything else we should know?" style="flex:1; margin:0;">
                 </div>
-                <button onclick="saveWorkingHours()" class="btn btn-primary btn-small">Save Hours</button>
-                <div id="wh-msg" class="hidden alert" style="margin-top:0.5rem;"></div>
-            </div>
-
-            <!-- Create Appointment Type -->
-            <div class="card">
-                <h3>2. Create New Service</h3>
-                <input type="text" id="apt-title" placeholder="Service Title (e.g., General Checkup)" required>
-                <textarea id="apt-desc" placeholder="Brief description of the service..."></textarea>
-                
-                <div style="display:flex; gap:1rem;">
-                    <div style="flex:1;">
-                        <label style="font-size:0.85rem; font-weight:500;">Duration (mins)</label>
-                        <input type="number" id="apt-duration" value="30">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-size:0.85rem; font-weight:500;">Price (₹)</label>
-                        <input type="number" id="apt-price" value="0">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-size:0.85rem; font-weight:500;">Max Capacity</label>
-                        <input type="number" id="apt-capacity" value="1">
-                    </div>
-                </div>
-                
-                <button onclick="createAppointment()" class="btn btn-primary btn-block">Create Service</button>
-                <div id="apt-msg" class="hidden alert" style="margin-top:0.5rem;"></div>
-                
-                <h4 style="margin-top:1.5rem; border-top:1px solid var(--border-color); padding-top:1rem;">My Active Services</h4>
-                <div id="my-services">
-                    <p class="text-secondary">Loading...</p>
-                </div>
-            </div>
-
-            <!-- Generate Slots -->
-            <div class="card">
-                <h3>3. Generate Time Slots</h3>
-                <p class="text-secondary" style="font-size: 0.85rem;">Automatically create bookable slots based on your working hours.</p>
-                
-                <select id="gen-service"><option>Loading services...</option></select>
-                
-                <div style="display:flex; gap:1rem;">
-                    <div style="flex:1;">
-                        <label style="font-size:0.85rem; font-weight:500;">Start Date</label>
-                        <input type="date" id="gen-start">
-                    </div>
-                    <div style="flex:1;">
-                        <label style="font-size:0.85rem; font-weight:500;">End Date</label>
-                        <input type="date" id="gen-end">
-                    </div>
-                </div>
-                
-                <button onclick="generateSlots()" class="btn btn-primary btn-block">Generate Slots</button>
-                <div id="gen-msg" class="hidden alert" style="margin-top:0.5rem;"></div>
+                <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
+                    <input type="checkbox" id="q-mand"> Mandatory Answer
+                </label>
+                <button onclick="addQuestion()" class="btn btn-outline btn-small">Confirm</button>
             </div>
         </div>
 
-        <!-- Right Column: Bookings -->
-        <div>
-            <div class="card" style="min-height: 500px;">
-                <h3>Upcoming Bookings</h3>
-                <div id="my-bookings" style="margin-top:1rem;">
-                    <p class="text-secondary">Loading bookings...</p>
+        <div id="tab-options" class="config-tab hidden">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 4rem;">
+                <div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+                        <span style="font-weight:500;">Manual confirmation</span>
+                        <label class="switch"><input type="checkbox" id="opt-manual" onchange="saveGeneral()"><span class="slider"></span></label>
+                    </div>
+                    
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+                        <span style="font-weight:500;">Paid Booking</span>
+                        <label class="switch"><input type="checkbox" id="opt-paid" onchange="saveGeneral()"><span class="slider"></span></label>
+                    </div>
+                    
+                    <div style="margin-bottom:1.5rem;" id="paid-box">
+                        <label style="font-size:0.85rem; color:var(--text-secondary);">Booking Fees (Rs)</label>
+                        <input type="number" id="opt-price" value="0" onchange="saveGeneral()">
+                    </div>
+                </div>
+                <div>
+                    <div style="margin-bottom:1.5rem;">
+                        <label style="font-weight:500; display:block; margin-bottom:0.5rem;">Max Capacity per slot</label>
+                        <input type="number" id="opt-capacity" value="1" onchange="saveGeneral()">
+                    </div>
+                    
+                    <button onclick="generateSlots()" class="btn btn-outline btn-block">Generate Slots (Next 7 days)</button>
+                    <div id="gen-msg" class="hidden alert" style="margin-top:0.5rem;"></div>
                 </div>
             </div>
         </div>
+
+        <div id="tab-misc" class="config-tab hidden">
+            <label style="font-weight:500;">Introduction page message</label>
+            <textarea rows="3" class="custom-select" style="margin-bottom:2rem;" placeholder="Schedule your visit today and experience expert care brought right to your doorstep."></textarea>
+            
+            <label style="font-weight:500;">Confirmation page message</label>
+            <textarea rows="3" class="custom-select" placeholder="Thank you for your trust we look forward to meeting you."></textarea>
+        </div>
+
     </div>
 </div>
 
 <script src="js/api.js"></script>
 <script>
     const user = getUser();
-    if (!user || user.role !== 'organiser') {
-        window.location.href = "index.html";
-    }
-
+    if (!user || user.role !== 'organiser') window.location.href = "index.html";
     document.getElementById('user-name').innerText = user.full_name;
 
-    async function saveWorkingHours() {
-        try {
-            await apiCall('/organiser/working-hours', 'POST', {
-                day_of_week: document.getElementById('wh-day').value,
-                start_time: document.getElementById('wh-start').value,
-                end_time: document.getElementById('wh-end').value,
-                is_active: true
-            });
-            showMsg('wh-msg', "Working hours saved successfully.");
-        } catch(err) {
-            showMsg('wh-msg', err.message, true);
-        }
+    const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    let currentApptId = null;
+    let isPublished = false;
+    let shareToken = null;
+
+    function switchConfigTab(tabId, el) {
+        document.querySelectorAll('.config-tab').forEach(t => t.classList.add('hidden'));
+        document.getElementById(tabId).classList.remove('hidden');
+        el.parentElement.querySelectorAll('.tab-btn').forEach(a => a.classList.remove('active'));
+        el.classList.add('active');
     }
 
-    async function createAppointment() {
-        try {
-            await apiCall('/appointments', 'POST', {
-                title: document.getElementById('apt-title').value,
-                description: document.getElementById('apt-desc').value,
-                duration_mins: document.getElementById('apt-duration').value,
-                requires_payment: document.getElementById('apt-price').value > 0,
-                payment_amount: document.getElementById('apt-price').value,
-                max_capacity: document.getElementById('apt-capacity').value
-            });
-            showMsg('apt-msg', "Service created successfully!");
-            document.getElementById('apt-title').value = "";
-            document.getElementById('apt-desc').value = "";
-            loadServices();
-        } catch(err) {
-            showMsg('apt-msg', err.message, true);
-        }
-    }
-
-    function showMsg(id, text, isError=false) {
-        const el = document.getElementById(id);
-        el.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
-        el.innerText = text;
-        setTimeout(() => el.classList.add('hidden'), 3000);
-    }
-
-    async function loadServices() {
+    async function loadServicesList() {
         try {
             const services = await apiCall('/appointments');
-            const list = document.getElementById('my-services');
-            const select = document.getElementById('gen-service');
-            list.innerHTML = "";
-            select.innerHTML = "";
-
-            if (services.length === 0) {
-                list.innerHTML = "<p class='text-secondary' style='font-size:0.9rem;'>No services created yet.</p>";
-                return;
-            }
-
+            const select = document.getElementById('service-selector');
+            select.innerHTML = '<option value="">-- Select or Create New --</option>';
             services.forEach(s => {
-                const div = document.createElement('div');
-                div.style.marginBottom = "1rem";
-                div.style.paddingBottom = "1rem";
-                div.style.borderBottom = "1px solid var(--border-color)";
-                
-                const status = s.is_published ? `<span class="badge badge-completed">Published</span>` : `<span class="badge badge-pending">Draft</span>`;
-                const link = `http://127.0.0.1:5500/book.html?token=${s.share_token}`;
-                
-                div.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:0.5rem;">
-                        <div>
-                            <strong style="display:block;">${s.title}</strong>
-                            <p style="font-size:0.85rem; margin-bottom:0.25rem;">${s.duration_mins} mins • ₹${s.payment_amount} • Cap: ${s.max_capacity}</p>
-                            ${status}
-                        </div>
-                        <button class="btn btn-outline btn-small" onclick="togglePublish(${s.id}, ${s.is_published})">
-                            ${s.is_published ? 'Unpublish' : 'Publish'}
-                        </button>
-                    </div>
-                    <div style="background:var(--bg-color); padding:0.5rem; border-radius:4px; font-size:0.75rem; display:flex; align-items:center; gap:0.5rem;">
-                        <span style="color:var(--text-secondary)">Share Link:</span>
-                        <input type="text" value="${link}" readonly style="padding:0.2rem; margin:0; flex:1; font-size:0.75rem; border:none; background:transparent;">
-                    </div>
-                `;
-                list.appendChild(div);
-
                 const opt = document.createElement('option');
                 opt.value = s.id;
                 opt.innerText = s.title;
                 select.appendChild(opt);
             });
-        } catch (err) {
-            console.error(err);
+        } catch (err) { console.error(err); }
+    }
+
+    function clearService() {
+        currentApptId = null;
+        document.getElementById('service-selector').value = "";
+        document.getElementById('apt-title').value = "";
+        document.getElementById('apt-desc').value = "";
+        document.getElementById('apt-duration').value = "30";
+        document.getElementById('opt-price').value = "0";
+        document.getElementById('opt-capacity').value = "1";
+        document.getElementById('opt-manual').checked = false;
+        document.getElementById('opt-paid').checked = false;
+        
+        document.getElementById('btn-preview').disabled = true;
+        document.getElementById('btn-publish').disabled = true;
+        document.getElementById('btn-publish').innerText = "Publish";
+        document.getElementById('status-badge').style.display = "none";
+        
+        document.getElementById('questions-list').innerHTML = `<tr><td colspan="4" class="text-secondary">Save the service (edit title) first to add questions.</td></tr>`;
+        document.getElementById('add-question-box').classList.add('hidden');
+    }
+
+    async function loadService(id) {
+        if (!id) return clearService();
+        try {
+            const res = await apiCall(`/appointments/${id}/preview`);
+            currentApptId = res.id;
+            isPublished = res.is_published;
+            shareToken = res.share_token;
+            
+            document.getElementById('apt-title').value = res.title;
+            document.getElementById('apt-desc').value = res.description;
+            document.getElementById('apt-duration').value = res.duration_mins;
+            document.getElementById('opt-price').value = res.payment_amount;
+            document.getElementById('opt-capacity').value = res.max_capacity;
+            document.getElementById('opt-manual').checked = res.manual_confirmation;
+            document.getElementById('opt-paid').checked = res.requires_payment;
+            
+            document.getElementById('btn-preview').disabled = false;
+            document.getElementById('btn-publish').disabled = false;
+            
+            updatePublishUI();
+            loadQuestions();
+        } catch(e) { console.error(e); }
+    }
+
+    function updatePublishUI() {
+        const btn = document.getElementById('btn-publish');
+        const badge = document.getElementById('status-badge');
+        if (isPublished) {
+            btn.innerText = "Unpublish";
+            badge.style.display = "inline-block";
+        } else {
+            btn.innerText = "Publish";
+            badge.style.display = "none";
         }
     }
 
-    async function togglePublish(id, currentlyPublished) {
-        try {
-            const action = currentlyPublished ? 'unpublish' : 'publish';
-            await apiCall(`/appointments/${id}/${action}`, 'PATCH');
-            loadServices();
-        } catch(err) {
-            alert(err.message);
-        }
+    async function togglePublish() {
+        if(!currentApptId) return;
+        const action = isPublished ? 'unpublish' : 'publish';
+        await apiCall(`/appointments/${currentApptId}/${action}`, 'PATCH');
+        isPublished = !isPublished;
+        updatePublishUI();
     }
 
-    async function generateSlots() {
+    function previewService() {
+        if(!shareToken) return;
+        window.open(`http://127.0.0.1:5500/customer.html?preview=${shareToken}`, '_blank');
+    }
+
+    async function saveGeneral() {
+        const title = document.getElementById('apt-title').value.trim();
+        if(!title) return; // don't save empty title
+        
+        const payload = {
+            title: title,
+            description: document.getElementById('apt-desc').value,
+            duration_mins: document.getElementById('apt-duration').value,
+            requires_payment: document.getElementById('opt-paid').checked,
+            payment_amount: document.getElementById('opt-price').value,
+            max_capacity: document.getElementById('opt-capacity').value,
+            manual_confirmation: document.getElementById('opt-manual').checked
+        };
+
         try {
-            const data = await apiCall('/slots/generate', 'POST', {
-                appointment_type_id: document.getElementById('gen-service').value,
-                start_date: document.getElementById('gen-start').value,
-                end_date: document.getElementById('gen-end').value
+            if (!currentApptId) {
+                // Create
+                const res = await apiCall('/appointments', 'POST', payload);
+                currentApptId = res.id;
+                shareToken = res.share_token;
+                document.getElementById('btn-preview').disabled = false;
+                document.getElementById('btn-publish').disabled = false;
+                loadQuestions();
+                loadServicesList();
+            } else {
+                // The backend doesn't have a PUT /appointments/<id> yet in this mockup,
+                // so we just simulate it or create a new one if it didn't exist.
+                // For a real app, we'd add an update route.
+                console.log("Auto-save triggered (needs backend PUT route)");
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    // --- SCHEDULE ---
+    async function loadWorkingHours() {
+        try {
+            const hours = await apiCall('/organiser/working-hours');
+            const container = document.getElementById('weekly-hours-container');
+            container.innerHTML = "";
+            
+            DAYS.forEach((dayName, index) => {
+                const existing = hours.find(h => h.day_of_week === index);
+                const isActive = existing ? existing.is_active : false;
+                const start = existing ? existing.start_time.substring(0,5) : "09:00";
+                const end = existing ? existing.end_time.substring(0,5) : "17:00";
+                
+                container.innerHTML += `
+                    <div class="toggle-row" style="display:flex; align-items:center; gap:1rem; padding: 0.5rem 0;">
+                        <label style="width:120px; display:flex; align-items:center; gap:0.5rem; font-weight:500;">
+                            <input type="checkbox" id="wh-active-${index}" ${isActive ? 'checked' : ''}>
+                            ${dayName}
+                        </label>
+                        <input type="time" class="custom-select" id="wh-start-${index}" value="${start}" style="margin:0; padding:0.4rem; width:auto;" ${!isActive ? 'disabled' : ''} onchange="document.getElementById('wh-active-${index}').checked = true">
+                        <span class="text-secondary">to</span>
+                        <input type="time" class="custom-select" id="wh-end-${index}" value="${end}" style="margin:0; padding:0.4rem; width:auto;" ${!isActive ? 'disabled' : ''} onchange="document.getElementById('wh-active-${index}').checked = true">
+                    </div>
+                `;
             });
-            showMsg('gen-msg', data.message);
-        } catch(err) {
-            showMsg('gen-msg', err.message, true);
-        }
+
+            DAYS.forEach((_, index) => {
+                document.getElementById(`wh-active-${index}`).addEventListener('change', function() {
+                    document.getElementById(`wh-start-${index}`).disabled = !this.checked;
+                    document.getElementById(`wh-end-${index}`).disabled = !this.checked;
+                });
+            });
+        } catch(err) { container.innerHTML = `<p class="text-error">Failed to load schedule.</p>`; }
+    }
+
+    async function saveAllWorkingHours() {
+        try {
+            const promises = DAYS.map((_, index) => {
+                return apiCall('/organiser/working-hours', 'POST', {
+                    day_of_week: index,
+                    start_time: document.getElementById(`wh-start-${index}`).value,
+                    end_time: document.getElementById(`wh-end-${index}`).value,
+                    is_active: document.getElementById(`wh-active-${index}`).checked
+                });
+            });
+            await Promise.all(promises);
+            const msg = document.getElementById('wh-msg');
+            msg.className = "alert alert-success"; msg.innerText = "Schedule saved!";
+            msg.classList.remove('hidden');
+            setTimeout(()=>msg.classList.add('hidden'), 3000);
+        } catch(err) { alert(err.message); }
+    }
+
+    // --- QUESTIONS ---
+    async function loadQuestions() {
+        if(!currentApptId) return;
+        document.getElementById('add-question-box').classList.remove('hidden');
+        try {
+            const questions = await apiCall(`/appointments/${currentApptId}/questions`);
+            const tbody = document.getElementById('questions-list');
+            tbody.innerHTML = "";
+            if (questions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-secondary">No custom questions added.</td></tr>`;
+                return;
+            }
+            questions.forEach(q => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${q.question_text}</td>
+                        <td><span class="text-secondary" style="font-size:0.8rem;">Single line text</span></td>
+                        <td><input type="checkbox" ${q.is_required ? 'checked' : ''} disabled></td>
+                        <td><button class="btn btn-outline btn-small" onclick="deleteQuestion(${q.id})" style="border:none; color:var(--error);">X</button></td>
+                    </tr>
+                `;
+            });
+        } catch(e) { console.error(e); }
+    }
+
+    async function addQuestion() {
+        if(!currentApptId) return;
+        try {
+            await apiCall(`/appointments/${currentApptId}/questions`, 'POST', {
+                question_text: document.getElementById('q-text').value,
+                is_required: document.getElementById('q-mand').checked,
+                order_index: 0
+            });
+            document.getElementById('q-text').value = "";
+            loadQuestions();
+        } catch(e) { alert(e.message); }
+    }
+
+    async function deleteQuestion(qid) {
+        if(!currentApptId) return;
+        try {
+            await apiCall(`/appointments/${currentApptId}/questions/${qid}`, 'DELETE');
+            loadQuestions();
+        } catch(e) { alert(e.message); }
+    }
+
+    // --- SLOTS & BOOKINGS ---
+    async function generateSlots() {
+        if(!currentApptId) return alert("Please save the service first.");
+        try {
+            const start = new Date().toISOString().split('T')[0];
+            const end = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const data = await apiCall('/slots/generate', 'POST', {
+                appointment_type_id: currentApptId,
+                start_date: start,
+                end_date: end
+            });
+            const msg = document.getElementById('gen-msg');
+            msg.className = "alert alert-success"; msg.innerText = data.message;
+            msg.classList.remove('hidden');
+            setTimeout(()=>msg.classList.add('hidden'), 3000);
+        } catch(err) { alert(err.message); }
     }
 
     async function loadBookings() {
@@ -233,66 +451,29 @@
             const bookings = await apiCall('/organiser/bookings');
             const list = document.getElementById('my-bookings');
             list.innerHTML = "";
-
-            if (bookings.length === 0) {
-                list.innerHTML = "<p class='text-secondary'>No bookings yet.</p>";
-                return;
-            }
+            if (bookings.length === 0) return list.innerHTML = "<p class='text-secondary'>No bookings yet.</p>";
 
             bookings.forEach(b => {
-                const div = document.createElement('div');
-                div.style.marginBottom = "1rem";
-                div.style.paddingBottom = "1rem";
-                div.style.borderBottom = "1px solid var(--border-color)";
-                
-                let badgeClass = "badge-pending";
-                if (b.status === "confirmed") badgeClass = "badge-confirmed";
-                if (b.status === "completed") badgeClass = "badge-completed";
-                if (b.status === "cancelled") badgeClass = "badge-cancelled";
-                
                 const time = new Date(b.slot_start).toLocaleString([], {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-                
-                // Format answers if any
-                let answersHtml = "";
-                if (b.answers && b.answers.length > 0) {
-                    answersHtml = "<div style='margin-top:0.5rem; background:var(--bg-color); padding:0.5rem; border-radius:4px; font-size:0.8rem;'>";
-                    b.answers.forEach(a => {
-                        answersHtml += `<strong>Q:</strong> ${a.question_text}<br><strong>A:</strong> <span style='color:var(--accent-color)'>${a.answer_text}</span><br>`;
-                    });
-                    answersHtml += "</div>";
-                }
-
-                div.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:start;">
-                        <div style="flex:1; padding-right:1rem;">
-                            <strong style="display:block;">${b.service_title}</strong>
-                            <p style="font-size:0.85rem; margin-bottom:0.25rem;">${b.customer_name} (<a href="mailto:${b.customer_email}" class="text-link">${b.customer_email}</a>)</p>
-                            <p style="font-size:0.85rem; color:var(--text-primary); margin-bottom:0.5rem;">📅 ${time}</p>
-                            <span class="badge ${badgeClass}">${b.status}</span>
-                            ${answersHtml}
+                list.innerHTML += `
+                    <div style="border-bottom:1px solid var(--border-color); padding:1rem 0; display:flex; justify-content:space-between;">
+                        <div>
+                            <strong>${b.service_title}</strong> - ${b.customer_name}
+                            <p class="text-secondary" style="margin:0; font-size:0.85rem;">📅 ${time} • ${b.status}</p>
                         </div>
-                        ${b.status === 'pending' ? 
-                          `<button class="btn btn-primary btn-small" onclick="confirmBooking(${b.id})">Confirm</button>` : ''}
+                        ${b.status === 'pending' ? `<button class="btn btn-primary btn-small" onclick="confirmBooking(${b.id})">Confirm</button>` : ''}
                     </div>
                 `;
-                list.appendChild(div);
             });
-        } catch(err) {
-            console.error(err);
-        }
+        } catch(err) {}
     }
-
     async function confirmBooking(id) {
-        try {
-            await apiCall(`/bookings/${id}/confirm`, 'PATCH');
-            loadBookings();
-        } catch(err) {
-            alert(err.message);
-        }
+        try { await apiCall(`/bookings/${id}/confirm`, 'PATCH'); loadBookings(); } 
+        catch(err) { alert(err.message); }
     }
 
-    // Init
-    loadServices();
+    loadWorkingHours();
+    loadServicesList();
     loadBookings();
 </script>
 </body>

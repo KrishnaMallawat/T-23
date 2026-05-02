@@ -5,8 +5,10 @@
     --surface-color: #FFFFFF;
     --text-primary: #1E293B;
     --text-secondary: #64748B;
-    --accent-color: #0EA5E9; /* Soft professional blue/teal */
-    --accent-hover: #0284C7;
+    --accent-color: #017E84; /* Odoo Teal */
+    --accent-hover: #01656A;
+    --primary-color: #714B67; /* Odoo Purple */
+    --primary-hover: #5A3C52;
     --border-color: #E2E8F0;
     --success: #10B981;
     --error: #EF4444;
@@ -92,7 +94,7 @@ p {
 
 /* Forms & Inputs */
 input[type="text"], input[type="email"], input[type="password"], 
-input[type="number"], input[type="date"], input[type="time"], select, textarea {
+input[type="number"], input[type="date"], input[type="time"], select, textarea, .custom-select {
     width: 100%;
     padding: 0.75rem 1rem;
     border: 1px solid var(--border-color);
@@ -282,4 +284,97 @@ input:focus, select:focus, textarea:focus {
 .toggle-desc {
     font-size: 0.85rem;
     color: var(--text-secondary);
+}
+
+/* Custom Excalidraw/Odoo-like Tabs */
+.tabs-header {
+    display: flex;
+    gap: 2rem;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+    padding: 0.75rem 0;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px; /* overlap border */
+    transition: all 0.2s;
+    font-size: 0.95rem;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
+}
+
+/* Styled Tables */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+}
+
+.data-table th, .data-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+.data-table th {
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--bg-color);
+}
+
+/* Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.switch input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--accent-color);
+}
+
+input:checked + .slider:before {
+    transform: translateX(20px);
 }
