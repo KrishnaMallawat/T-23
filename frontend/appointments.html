@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Services — CuratedSlot</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <nav class="nav" id="app-nav"></nav>
+  <div class="page-wrapper">
+    <div class="container" style="padding-top:32px;padding-bottom:48px">
+      <div class="page-header">
+        <div class="page-header-inner">
+          <div><h1 class="page-title">Services</h1><p class="page-subtitle">Create and manage your appointment types</p></div>
+          <button class="btn btn-primary" onclick="openCreateModal()">+ New Service</button>
+        </div>
+      </div>
+      <div id="appts-container"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- Create/Edit Service Modal -->
+  <div class="modal-overlay" id="service-modal">
+    <div class="modal" style="max-width:640px">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">New Service</h3>
+        <button class="modal-close" onclick="closeModal('service-modal')">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Service title *</label>
+          <input class="form-control" id="f-title" placeholder="e.g. Initial Consultation">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Description</label>
+          <textarea class="form-control" id="f-desc" rows="2" placeholder="What does this service include?"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Duration (minutes) *</label>
+          <input class="form-control" id="f-duration" type="number" min="5" placeholder="60">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max capacity *</label>
+          <input class="form-control" id="f-capacity" type="number" min="1" value="1">
+        </div>
+      </div>
+
+      <div class="section-title" style="margin:16px 0 12px">💳 Payment Rules</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group">
+          <label class="form-label">Payment requirement</label>
+          <select class="form-control" id="f-payment" onchange="togglePayAmt()">
+            <option value="none">None (free)</option>
+            <option value="optional_advance">Optional advance</option>
+            <option value="mandatory_advance">Mandatory advance</option>
+          </select>
+        </div>
+        <div class="form-group" id="pay-amt-group">
+          <label class="form-label">Amount (₹)</label>
+          <input class="form-control" id="f-pay-amt" type="number" min="0" value="0" placeholder="0">
+        </div>
+      </div>
+
+      <div class="section-title" style="margin:16px 0 12px">📋 Cancellation Rules</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+        <div class="form-group">
+          <label class="form-label">Allow cancellation</label>
+          <label class="toggle-wrap" style="margin-top:4px">
+            <span id="f-cancel-toggle" class="toggle on" onclick="toggleField('f-cancel-toggle','allow_cancellation')"></span>
+            <span style="font-size:13px" id="f-cancel-label">Allowed</span>
+          </label>
+          <input type="hidden" id="allow_cancellation" value="true">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cutoff (hours)</label>
+          <input class="form-control" id="f-cutoff" type="number" min="0" value="24">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Allow rescheduling</label>
+          <label class="toggle-wrap" style="margin-top:4px">
+            <span id="f-resched-toggle" class="toggle on" onclick="toggleField('f-resched-toggle','allow_rescheduling')"></span>
+            <span style="font-size:13px" id="f-resched-label">Allowed</span>
+          </label>
+          <input type="hidden" id="allow_rescheduling" value="true">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Refund % before cutoff</label>
+          <input class="form-control" id="f-refund-before" type="number" min="0" max="100" value="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Refund % after cutoff</label>
+          <input class="form-control" id="f-refund-after" type="number" min="0" max="100" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Manual confirm</label>
+          <label class="toggle-wrap" style="margin-top:4px">
+            <span id="f-manual-toggle" class="toggle" onclick="toggleField('f-manual-toggle','manual_confirmation')"></span>
+            <span style="font-size:13px" id="f-manual-label">Auto-confirm</span>
+          </label>
+          <input type="hidden" id="manual_confirmation" value="false">
+        </div>
+      </div>
+
+      <div id="error-msg" class="form-error d-none" style="margin-bottom:8px"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('service-modal')">Cancel</button>
+        <button class="btn btn-primary" id="save-service-btn" onclick="saveService()">Create Service</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Questions Modal -->
+  <div class="modal-overlay" id="questions-modal">
+    <div class="modal" style="max-width:540px">
+      <div class="modal-header">
+        <h3 class="modal-title">Intake Questions</h3>
+        <button class="modal-close" onclick="closeModal('questions-modal')">✕</button>
+      </div>
+      <p class="text-muted mb-16">These questions appear on the booking checkout form.</p>
+      <div id="questions-list"></div>
+      <div style="margin-top:16px;border-top:1px solid var(--gray-200);padding-top:16px">
+        <h4 style="margin-bottom:12px">Add Question</h4>
+        <div class="form-group">
+          <input class="form-control" id="new-q-text" placeholder="e.g. What is your main concern?">
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <label class="toggle-wrap">
+            <span id="new-q-req-toggle" class="toggle" onclick="toggleNewQReq()"></span>
+            <span style="font-size:13px">Required</span>
+          </label>
+          <input type="hidden" id="new-q-required" value="false">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="addQuestion()">+ Add Question</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/appointments.js"></script>
+</body>
+</html>

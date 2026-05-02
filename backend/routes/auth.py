@@ -19,7 +19,6 @@ def signup():
     email     = (data.get("email") or "").strip().lower()
     password  = data.get("password") or ""
     role      = (data.get("role") or "customer").strip().lower()
-    user_id = (full_name.upper()[:1] + role.upper()[:1] + random.randit(0,999) for _ in range(3))
     
     if not full_name or not email or not password:
         return error("full_name, email, and password are required")
@@ -36,8 +35,8 @@ def signup():
 
     pw_hash = hash_password(password)
     user_id = db.execute(
-        "INSERT INTO users (id, full_name, email, password_hash, role) VALUES (%s, %s, %s, %s, %s)",
-        (user_id, full_name, email, pw_hash, role),
+        "INSERT INTO users (full_name, email, password_hash, role) VALUES (%s, %s, %s, %s)",
+        (full_name, email, pw_hash, role),
         fetch="lastrowid",
     )
     user = db.execute("SELECT id, full_name, email, role FROM users WHERE id=%s", (user_id,), fetch="one")
@@ -181,11 +180,11 @@ def forgot_password():
 
     GENERIC = "If that email is registered, a reset link has been sent."
     user = db.execute(
-        "SELECT id, full_name FROM users WHERE email=%s AND is_active=1 AND is_verified=1",
+        "SELECT id, full_name, is_verified FROM users WHERE email=%s AND is_active=1",
         (email,), fetch="one",
     )
     if not user:
-        return success({"message": GENERIC})
+        return error("No active account found with that email address.", 404)
 
     db.execute(
         "UPDATE password_reset_tokens SET is_used=1 WHERE user_id=%s AND is_used=0",

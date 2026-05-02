@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log In — CuratedSlot</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-brand">CuratedSlot</div>
+      <p class="auth-subtitle">Sign in to your account</p>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label" for="email">Email address</label>
+          <input class="form-control" type="email" id="email" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input class="form-control" type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+          <div style="text-align:right;margin-top:6px">
+            <a href="/forgot-password.html" style="font-size:13px">Forgot password?</a>
+          </div>
+        </div>
+        <div id="error-msg" class="form-error d-none"></div>
+        <button class="btn btn-primary btn-block btn-lg mt-16" type="submit" id="submit-btn">Log In</button>
+      </form>
+
+      <div class="auth-divider"><span>New here?</span></div>
+      <a href="/signup.html" class="btn btn-ghost btn-block">Create an account</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    redirectIfLoggedIn();
+
+    document.getElementById('login-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      const errEl = document.getElementById('error-msg');
+      errEl.classList.add('d-none');
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+
+      try {
+        const emailVal = document.getElementById('email').value.trim();
+        const passVal = document.getElementById('password').value;
+        const res = await api('/api/auth/login', {
+          method: 'POST', noAuth: true,
+          body: { email: emailVal, password: passVal }
+        });
+        setSession(res.token, res.user);
+        toast('Welcome back, ' + res.user.full_name + '!', 'success');
+        setTimeout(() => {
+          if (res.user.role === 'organiser') window.location.href = '/dashboard.html';
+          else if (res.user.role === 'admin') window.location.href = '/admin.html';
+          else window.location.href = '/providers.html';
+        }, 600);
+      } catch (err) {
+        if (err.status === 403 && err.message && err.message.indexOf('verify') !== -1) {
+          var emailVal2 = document.getElementById('email').value.trim();
+          sessionStorage.setItem('otp_email', emailVal2);
+          toast('Please verify your email first.', 'error');
+          setTimeout(function() { window.location.href = '/verify-otp.html'; }, 1000);
+        } else {
+          errEl.textContent = err.message;
+          errEl.classList.remove('d-none');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Log In';
+      }
+    });
+  </script>
+</body>
+</html>

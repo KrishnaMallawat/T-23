@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leave Feedback — CuratedSlot</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <nav class="nav" id="app-nav"></nav>
+  <div class="page-wrapper">
+    <div class="container" style="padding-top:32px;padding-bottom:48px;max-width:600px">
+      <a href="/my-bookings.html" style="font-size:14px;color:var(--gray-600);display:inline-flex;align-items:center;gap:4px;margin-bottom:24px">← Back to My Bookings</a>
+      <div class="card card-elevated" style="padding:32px">
+        <h2 style="margin-bottom:4px">Leave Feedback</h2>
+        <p class="text-muted mb-24">Your honest review helps other customers make better decisions.</p>
+
+        <div class="form-group">
+          <label class="form-label">⏱️ Punctuality <span style="color:var(--gray-400);font-weight:400">(How on-time was the provider?)</span></label>
+          <div class="star-rating" id="stars-punctuality" data-key="punctuality_rating"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">⭐ Quality <span style="color:var(--gray-400);font-weight:400">(Quality of service delivered)</span></label>
+          <div class="star-rating" id="stars-quality" data-key="quality_rating"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">🌿 Environment <span style="color:var(--gray-400);font-weight:400">(Cleanliness, comfort, ambience)</span></label>
+          <div class="star-rating" id="stars-environment" data-key="environment_rating"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Did the session run over time?</label>
+          <label class="toggle-wrap">
+            <span id="overrun-toggle" class="toggle" onclick="toggleOverrun()"></span>
+            <span style="font-size:14px">Yes, it overran</span>
+          </label>
+        </div>
+        <div class="form-group" id="delay-group" style="display:none">
+          <label class="form-label">Approximate delay (minutes)</label>
+          <input type="number" class="form-control" id="avg-delay" min="0" max="120" value="10" style="max-width:120px">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Provider style</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="style-btns">
+            <button class="btn btn-ghost btn-sm" onclick="setStyle('professional',this)">🎩 Professional</button>
+            <button class="btn btn-ghost btn-sm" onclick="setStyle('friendly',this)">😊 Friendly</button>
+            <button class="btn btn-ghost btn-sm" onclick="setStyle('technical',this)">🔧 Technical</button>
+            <button class="btn btn-ghost btn-sm" onclick="setStyle('casual',this)">👕 Casual</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Written review <span style="color:var(--gray-400);font-weight:400">(optional)</span></label>
+          <textarea class="form-control" id="text-review" rows="4" placeholder="Share your experience…"></textarea>
+        </div>
+
+        <div id="error-msg" class="form-error d-none" style="margin-bottom:12px"></div>
+        <button class="btn btn-primary btn-lg btn-block" id="submit-btn" onclick="submitFeedback()">Submit Feedback</button>
+      </div>
+    </div>
+  </div>
+  <script src="/js/api.js"></script>
+  <script src="/js/feedback.js"></script>
+</body>
+</html>

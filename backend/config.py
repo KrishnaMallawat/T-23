@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# .env lives in the repo root (T-23/), one level above backend/
+_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=_ROOT / '.env', override=True)
 
 DB_HOST     = os.getenv("DB_HOST", "localhost")
 DB_PORT     = int(os.getenv("DB_PORT", 5432))

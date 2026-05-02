@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Preview — CuratedSlot</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <nav class="nav" id="app-nav"></nav>
+  <div class="page-wrapper">
+    <div class="container" style="padding-top:48px;padding-bottom:48px;max-width:680px">
+      <div id="preview-container"><div class="spinner"></div></div>
+    </div>
+  </div>
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('');
+    const token = new URLSearchParams(location.search).get('token');
+    if (!token) {
+      document.getElementById('preview-container').innerHTML =
+        `<div class="empty-state"><div class="empty-icon">🔗</div><h3>Invalid share link</h3><p>This link is not valid.</p></div>`;
+    } else {
+      api('/api/appointments/preview/' + token, { noAuth: true }).then(appt => {
+        const payLabel = { none:'Free', optional_advance:'Optional advance', mandatory_advance:'Advance required' };
+        document.title = appt.title + ' — CuratedSlot';
+        document.getElementById('preview-container').innerHTML = `
+          <div style="text-align:center;margin-bottom:32px">
+            <span class="hero-eyebrow">📋 Service Preview</span>
+          </div>
+          <div class="card card-elevated" style="padding:32px">
+            <h2 style="margin-bottom:6px">${appt.title}</h2>
+            <p class="text-muted mb-16">by <strong>${appt.organiser_name}</strong></p>
+            <p style="margin-bottom:20px">${appt.description || 'No description provided.'}</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px">
+              <span class="badge badge-purple">⏱️ ${appt.duration_mins} min</span>
+              <span class="badge badge-purple">👥 Up to ${appt.max_capacity} people</span>
+              <span class="badge badge-purple">💳 ${payLabel[appt.payment_requirement] || 'Free'}</span>
+              ${appt.has_parking ? '<span class="badge badge-purple">🅿️ Parking</span>' : ''}
+              ${appt.is_wheelchair_accessible ? '<span class="badge badge-purple">♿ Accessible</span>' : ''}
+            </div>
+            ${appt.bio ? `<div style="background:var(--purple-50);border-radius:var(--radius-sm);padding:16px;margin-bottom:20px;font-size:14px"><strong>About ${appt.organiser_name}:</strong> ${appt.bio}</div>` : ''}
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+              <a href="/login.html" class="btn btn-primary btn-lg">Log in to Book →</a>
+              <a href="/signup.html" class="btn btn-ghost btn-lg">Create Account</a>
+            </div>
+          </div>`;
+      }).catch(err => {
+        document.getElementById('preview-container').innerHTML =
+          `<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Service not found</h3><p>${err.message}</p></div>`;
+      });
+    }
+  </script>
+</body>
+</html>

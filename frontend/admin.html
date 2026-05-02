@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel — CuratedSlot</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <nav class="nav" id="app-nav"></nav>
+  <div class="page-wrapper">
+    <div class="container" style="padding-top:32px;padding-bottom:48px">
+      <div class="page-header">
+        <div class="page-header-inner">
+          <div><h1 class="page-title">Admin Panel</h1><p class="page-subtitle">Platform-wide overview and user management</p></div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div id="stats-container"><div class="spinner"></div></div>
+
+      <!-- Tabs -->
+      <div class="tabs mt-24">
+        <button class="tab-btn active" onclick="showTab('providers',this)">Providers</button>
+        <button class="tab-btn" onclick="showTab('users',this)">All Users</button>
+      </div>
+      <div id="tab-providers"><div class="spinner"></div></div>
+      <div id="tab-users" class="d-none"><div class="spinner"></div></div>
+    </div>
+  </div>
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

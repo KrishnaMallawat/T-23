@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Providers — CuratedSlot</title>
+  <meta name="description" content="Find and compare service providers with personalised match scores.">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <nav class="nav" id="app-nav"></nav>
+  <div class="page-wrapper">
+    <div class="container" style="padding-top:32px;padding-bottom:48px">
+      <div class="page-header">
+        <div class="page-header-inner">
+          <div>
+            <h1 class="page-title">Browse Providers</h1>
+            <p class="page-subtitle">Your personalised match score is shown for each provider</p>
+          </div>
+          <button class="btn btn-secondary" onclick="document.getElementById('prefs-panel').classList.toggle('d-none')">
+            ⚙️ My Preferences
+          </button>
+        </div>
+      </div>
+
+      <!-- Preferences Panel -->
+      <div id="prefs-panel" class="card mb-24 d-none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 style="margin:0">🎯 Match Preferences</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="resetSliders()">Reset</button>
+            <button class="btn btn-primary btn-sm" onclick="savePreferences()">Save Permanently</button>
+          </div>
+        </div>
+        <p class="text-muted mb-16">Adjust weights (0–100) for each factor. Moving sliders instantly re-ranks providers without saving — click <strong>Save Permanently</strong> to persist.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
+          <div class="slider-group">
+            <div class="slider-header"><span class="slider-label">⏱️ Punctuality</span><span class="slider-value" id="val-p">50</span></div>
+            <input type="range" min="0" max="100" value="50" id="sl-p" oninput="onSlider('p',this.value)">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header"><span class="slider-label">⭐ Quality</span><span class="slider-value" id="val-q">50</span></div>
+            <input type="range" min="0" max="100" value="50" id="sl-q" oninput="onSlider('q',this.value)">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header"><span class="slider-label">🌿 Environment</span><span class="slider-value" id="val-e">50</span></div>
+            <input type="range" min="0" max="100" value="50" id="sl-e" oninput="onSlider('e',this.value)">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header"><span class="slider-label">🅿️ Parking</span><span class="slider-value" id="val-pk">50</span></div>
+            <input type="range" min="0" max="100" value="50" id="sl-pk" oninput="onSlider('pk',this.value)">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header"><span class="slider-label">♿ Accessibility</span><span class="slider-value" id="val-a">50</span></div>
+            <input type="range" min="0" max="100" value="50" id="sl-a" oninput="onSlider('a',this.value)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters bar -->
+      <div class="card mb-24" style="padding:16px 20px">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+          <span style="font-weight:600;font-size:13px;color:var(--gray-700)">Filters:</span>
+          <select class="form-control" id="f-noise" style="width:auto" onchange="applyFilters()">
+            <option value="">Any noise level</option>
+            <option value="quiet">🤫 Quiet</option>
+            <option value="moderate">💬 Moderate</option>
+            <option value="loud">📢 Loud</option>
+          </select>
+          <label class="toggle-wrap" style="cursor:pointer">
+            <span id="parking-toggle" class="toggle" onclick="toggleFilter('parking')"></span>
+            <span style="font-size:13px;font-weight:500">🅿️ Has parking</span>
+          </label>
+          <label class="toggle-wrap">
+            <span id="wheelchair-toggle" class="toggle" onclick="toggleFilter('wheelchair')"></span>
+            <span style="font-size:13px;font-weight:500">♿ Wheelchair accessible</span>
+          </label>
+          <span id="results-count" class="text-muted" style="margin-left:auto"></span>
+        </div>
+      </div>
+
+      <!-- Provider grid -->
+      <div id="providers-container">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/providers.js"></script>
+</body>
+</html>

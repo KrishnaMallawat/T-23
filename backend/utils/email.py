@@ -7,7 +7,13 @@ from config import GMAIL_USER, GMAIL_APP_PASSWORD, APP_NAME, FRONTEND_URL
 # ── Low-level sender ──────────────────────────────────────────────────────────
 
 def _send(to_email: str, subject: str, html_body: str):
-    """Send an HTML email via Gmail SMTP SSL."""
+    """Send an HTML email via Gmail SMTP SSL, or print to terminal in dev mode."""
+    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
+        print(f"\n{'='*50}\n[DEV MODE] EMAIL INTERCEPTED")
+        print(f"TO: {to_email}\nSUBJECT: {subject}")
+        print(f"BODY (HTML):\n{html_body[:200]}... [TRUNCATED]\n{'='*50}\n")
+        return
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"]    = f"{APP_NAME} <{GMAIL_USER}>"

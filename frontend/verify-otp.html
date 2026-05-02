@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Email — CuratedSlot</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card" style="max-width:440px">
+      <div class="auth-brand">CuratedSlot</div>
+      <p class="auth-subtitle">Enter the 6-digit code sent to <strong id="email-display">your email</strong></p>
+
+      <div class="otp-inputs">
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" id="d0">
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" id="d1">
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" id="d2">
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" id="d3">
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" id="d4">
+        <input class="otp-digit" type="text" maxlength="1" inputmode="numeric" id="d5">
+      </div>
+
+      <div id="error-msg" class="form-error text-center d-none" style="margin-bottom:12px"></div>
+
+      <button class="btn btn-primary btn-block btn-lg" id="verify-btn" onclick="verifyOtp()">Verify Email</button>
+
+      <div style="text-align:center;margin-top:20px">
+        <span class="text-muted">Didn't receive it? </span>
+        <button class="btn btn-ghost btn-sm" id="resend-btn" onclick="resendOtp()">Resend OTP</button>
+        <span id="cooldown" class="text-muted d-none"></span>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    let email = sessionStorage.getItem('otp_email');
+    if (email) {
+      document.getElementById('email-display').textContent = email;
+    } else {
+      document.getElementById('email-display').innerHTML = '<input type="email" id="manual-email" class="form-control mt-8" placeholder="Enter your email" style="width:100%">';
+    }
+
+    function getEmail() {
+      if (email) return email;
+      var el = document.getElementById('manual-email');
+      return el ? el.value.trim() : '';
+    }
+
+    // Auto-advance digits
+    const digits = Array.from(document.querySelectorAll('.otp-digit'));
+    digits.forEach((d, i) => {
+      d.addEventListener('input', () => {
+        d.value = d.value.replace(/\D/g,'');
+        if (d.value && i < 5) digits[i+1].focus();
+      });
+      d.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !d.value && i > 0) digits[i-1].focus();
+      });
+      d.addEventListener('paste', e => {
+        const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'');
+        if (paste.length === 6) {
+          digits.forEach((dd, ii) => dd.value = paste[ii] || '');
+          digits[5].focus();
+          e.preventDefault();
+        }
+      });
+    });
+
+    async function verifyOtp() {
+      const currentEmail = getEmail();
+      if (!currentEmail) { showErr('Please enter your email.'); return; }
+      const otp = digits.map(d => d.value).join('');
+      if (otp.length !== 6) { showErr('Please enter all 6 digits.'); return; }
+      const btn = document.getElementById('verify-btn');
+      btn.disabled = true; btn.textContent = 'Verifying…';
+      try {
+        const res = await api('/api/auth/verify-otp', { method:'POST', noAuth:true, body:{ email: currentEmail, otp } });
+        setSession(res.token, res.user);
+        sessionStorage.removeItem('otp_email');
+        toast('Email verified! Welcome!', 'success');
+        setTimeout(() => {
+          if (res.user.role === 'organiser') window.location.href = '/dashboard.html';
+          else window.location.href = '/providers.html';
+        }, 700);
+      } catch(err) {
+        showErr(err.message);
+        btn.disabled = false; btn.textContent = 'Verify Email';
+      }
+    }
+
+    async function resendOtp() {
+      const currentEmail = getEmail();
+      if (!currentEmail) { showErr('Please enter your email.'); return; }
+      const btn = document.getElementById('resend-btn');
+      const cd  = document.getElementById('cooldown');
+      btn.disabled = true;
+      try {
+        await api('/api/auth/resend-otp', { method:'POST', noAuth:true, body:{ email: currentEmail } });
+        toast('New OTP sent!', 'success');
+        btn.classList.add('d-none'); cd.classList.remove('d-none');
+        let secs = 60;
+        cd.textContent = `Resend in ${secs}s`;
+        const iv = setInterval(() => {
+          secs--;
+          cd.textContent = `Resend in ${secs}s`;
+          if (secs <= 0) { clearInterval(iv); btn.classList.remove('d-none'); btn.disabled=false; cd.classList.add('d-none'); }
+        }, 1000);
+      } catch(err) {
+        toast(err.message, 'error');
+        btn.disabled = false;
+      }
+    }
+
+    function showErr(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg; el.classList.remove('d-none');
+    }
+  </script>
+</body>
+</html>
