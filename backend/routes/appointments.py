@@ -13,7 +13,7 @@ def list_appointments():
         """
         SELECT id, title, description, duration_mins, is_published,
                payment_requirement, payment_amount, manual_confirmation,
-               max_capacity, share_token, created_at
+               max_capacity, share_token, created_at, image_url
         FROM appointment_types WHERE organiser_id=%s ORDER BY created_at DESC
         """,
         (request.user_id,), fetch="all",
@@ -32,29 +32,81 @@ def create_appointment():
     pay_req     = data.get("payment_requirement", "none")
     pay_amt     = float(data.get("payment_amount", 0))
     manual      = bool(data.get("manual_confirmation", False))
+    image_url   = data.get("image_url")
+    has_park    = bool(data.get("has_parking", False))
+    wheelchair  = bool(data.get("is_wheelchair_accessible", False))
+    noise       = data.get("noise_level", "moderate")
 
     if not title:
         return error("title is required")
     if not duration or int(duration) <= 0:
         return error("duration_mins must be a positive integer")
+    if noise not in ("quiet", "moderate", "loud"):
+        return error("noise_level must be quiet, moderate, or loud")
 
     share_token = generate_share_token()
     appt_id = db.execute(
         """
         INSERT INTO appointment_types
             (organiser_id, title, description, duration_mins, max_capacity,
-             payment_requirement, payment_amount, manual_confirmation, share_token)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+             payment_requirement, payment_amount, manual_confirmation, share_token, image_url,
+             has_parking, is_wheelchair_accessible, noise_level)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """,
         (request.user_id, title, description, int(duration), int(max_cap),
-         pay_req, pay_amt, manual, share_token),
+         pay_req, pay_amt, manual, share_token, image_url, has_park, wheelchair, noise),
         fetch="lastrowid",
     )
     appt = db.execute(
-        "SELECT id, title, duration_mins, is_published, share_token FROM appointment_types WHERE id=%s",
+        "SELECT id, title, duration_mins, is_published, share_token, image_url, has_parking, is_wheelchair_accessible, noise_level FROM appointment_types WHERE id=%s",
         (appt_id,), fetch="one",
     )
     return success(dict(appt), 201)
+
+
+@appointments_bp.route("/appointments/<int:appt_id>", methods=["PATCH"])
+@role_required("organiser")
+def update_appointment(appt_id):
+    appt = db.execute("SELECT organiser_id FROM appointment_types WHERE id=%s", (appt_id,), fetch="one")
+    if not appt or appt["organiser_id"] != request.user_id:
+        return error("Forbidden", 403)
+
+    data = request.get_json(silent=True) or {}
+    
+    # We allow updating image_url, title, description, etc.
+    fields = []
+    params = []
+    
+    if "image_url" in data:
+        fields.append("image_url=%s")
+        params.append(data["image_url"])
+    if "title" in data and data["title"].strip():
+        fields.append("title=%s")
+        params.append(data["title"].strip())
+    if "description" in data:
+        fields.append("description=%s")
+        params.append(data["description"].strip())
+    if "duration_mins" in data and int(data["duration_mins"]) > 0:
+        fields.append("duration_mins=%s")
+        params.append(int(data["duration_mins"]))
+    if "has_parking" in data:
+        fields.append("has_parking=%s")
+        params.append(bool(data["has_parking"]))
+    if "is_wheelchair_accessible" in data:
+        fields.append("is_wheelchair_accessible=%s")
+        params.append(bool(data["is_wheelchair_accessible"]))
+    if "noise_level" in data and data["noise_level"] in ("quiet", "moderate", "loud"):
+        fields.append("noise_level=%s")
+        params.append(data["noise_level"])
+        
+    if not fields:
+        return success({"message": "Nothing to update"})
+        
+    params.append(appt_id)
+    query = f"UPDATE appointment_types SET {', '.join(fields)} WHERE id=%s"
+    db.execute(query, tuple(params))
+    
+    return success({"message": "Appointment updated"})
 
 
 @appointments_bp.route("/appointments/<int:appt_id>/publish", methods=["PATCH"])
@@ -87,10 +139,12 @@ def preview_appointment(appt_id):
     appt = db.execute(
         """
         SELECT at.*, u.full_name AS organiser_name,
-               pi.bio, pi.has_parking, pi.is_wheelchair_accessible, pi.noise_level
+               pi.bio, pbs.punctuality_score, pbs.quality_score, pbs.environment_score,
+               pbs.avg_delay_mins, pbs.overrun_rate, pbs.total_reviews, pbs.parking_score, pbs.accessibility_score
         FROM appointment_types at
         JOIN users u ON u.id = at.organiser_id
         LEFT JOIN provider_info pi ON pi.provider_id = at.organiser_id
+        LEFT JOIN provider_behavioral_scores pbs ON pbs.provider_id = at.organiser_id
         WHERE at.id=%s
         """,
         (appt_id,), fetch="one",
@@ -106,11 +160,15 @@ def public_preview(token):
         """
         SELECT at.id, at.title, at.description, at.duration_mins,
                at.max_capacity, at.payment_requirement, at.payment_amount,
+               at.image_url, at.has_parking, at.is_wheelchair_accessible, at.noise_level,
+               at.allow_cancellation, at.cancellation_cutoff_hours, at.allow_rescheduling,
                u.full_name AS organiser_name,
-               pi.bio, pi.has_parking, pi.is_wheelchair_accessible, pi.noise_level
+               pi.bio, pbs.punctuality_score, pbs.quality_score, pbs.environment_score,
+               pbs.avg_delay_mins, pbs.overrun_rate, pbs.total_reviews, pbs.parking_score, pbs.accessibility_score
         FROM appointment_types at
         JOIN users u ON u.id = at.organiser_id
         LEFT JOIN provider_info pi ON pi.provider_id = at.organiser_id
+        LEFT JOIN provider_behavioral_scores pbs ON pbs.provider_id = at.organiser_id
         WHERE at.share_token=%s
         """,
         (token,), fetch="one",
@@ -156,17 +214,22 @@ def add_question(appt_id):
     question_text = (data.get("question_text") or "").strip()
     is_required   = bool(data.get("is_required", False))
     order_index   = int(data.get("order_index", 0))
+    question_type = data.get("question_type", "text")
+    import json
+    options_json  = json.dumps(data.get("options", [])) if question_type == "mcq" else None
 
     if not question_text:
         return error("question_text is required")
+    if question_type not in ("text", "mcq"):
+        return error("question_type must be text or mcq")
 
     qid = db.execute(
-        "INSERT INTO appointment_questions (appointment_type_id, question_text, is_required, order_index) VALUES (%s,%s,%s,%s)",
-        (appt_id, question_text, is_required, order_index),
+        "INSERT INTO appointment_questions (appointment_type_id, question_text, is_required, order_index, question_type, options) VALUES (%s,%s,%s,%s,%s,%s)",
+        (appt_id, question_text, is_required, order_index, question_type, options_json),
         fetch="lastrowid",
     )
     q = db.execute(
-        "SELECT id, question_text, is_required, order_index FROM appointment_questions WHERE id=%s",
+        "SELECT id, question_text, is_required, order_index, question_type, options FROM appointment_questions WHERE id=%s",
         (qid,), fetch="one",
     )
     return success(dict(q), 201)

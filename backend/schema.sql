@@ -75,6 +75,10 @@ CREATE TABLE appointment_types (
     manual_confirmation          BOOLEAN NOT NULL DEFAULT FALSE,
     max_capacity                 INT NOT NULL DEFAULT 1,
     share_token                  VARCHAR(64) UNIQUE,
+    image_url                    TEXT,
+    has_parking                  BOOLEAN NOT NULL DEFAULT FALSE,
+    is_wheelchair_accessible     BOOLEAN NOT NULL DEFAULT FALSE,
+    noise_level                  ENUM('quiet','moderate','loud') NOT NULL DEFAULT 'moderate',
     created_at                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (organiser_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_apt_organiser (organiser_id)
@@ -84,6 +88,8 @@ CREATE TABLE appointment_questions (
     id                  INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     appointment_type_id INT NOT NULL,
     question_text       TEXT NOT NULL,
+    question_type       ENUM('text','mcq') NOT NULL DEFAULT 'text',
+    options             JSON,
     is_required         BOOLEAN NOT NULL DEFAULT FALSE,
     order_index         INT NOT NULL DEFAULT 0,
     FOREIGN KEY (appointment_type_id) REFERENCES appointment_types(id) ON DELETE CASCADE,
@@ -152,6 +158,8 @@ CREATE TABLE appointment_feedback (
     session_overran     BOOLEAN DEFAULT FALSE,
     avg_delay_mins      INT DEFAULT 0,
     provider_style      ENUM('professional','friendly','technical','casual'),
+    parking_rating      TINYINT,
+    accessibility_rating TINYINT,
     text_review         TEXT,
     submitted_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
@@ -164,6 +172,8 @@ CREATE TABLE provider_behavioral_scores (
     overrun_rate      DECIMAL(5,4) DEFAULT 0,
     quality_score     DECIMAL(5,2) DEFAULT 0,
     environment_score DECIMAL(5,2) DEFAULT 0,
+    parking_score     DECIMAL(5,2) DEFAULT 0,
+    accessibility_score DECIMAL(5,2) DEFAULT 0,
     total_reviews     INT NOT NULL DEFAULT 0,
     last_updated      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (provider_id) REFERENCES users(id) ON DELETE CASCADE

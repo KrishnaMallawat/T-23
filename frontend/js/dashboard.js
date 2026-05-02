@@ -60,6 +60,18 @@ function render(data) {
         <div class="stat-label">Avg Quality</div>
       </div>
       <div class="stat-card">
+        <div class="stat-value">${s.avg_environment ? s.avg_environment + '/5' : '—'}</div>
+        <div class="stat-label">Avg Environment</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${s.avg_parking ? s.avg_parking + '/5' : '—'}</div>
+        <div class="stat-label">🅿️ Parking</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${s.avg_accessibility ? s.avg_accessibility + '/5' : '—'}</div>
+        <div class="stat-label">♿ Accessibility</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-value">${s.total_reviews ?? '—'}</div>
         <div class="stat-label">Total Reviews</div>
       </div>

@@ -35,6 +35,14 @@
           <label class="form-label">Description</label>
           <textarea class="form-control" id="f-desc" rows="2" placeholder="What does this service include?"></textarea>
         </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Service Image (optional)</label>
+          <div style="display:flex;gap:12px;align-items:center">
+            <input type="file" id="f-image-file" accept="image/*" class="form-control" style="flex:1" onchange="uploadServiceImage(event)">
+            <input type="hidden" id="f-image-url">
+            <div id="image-preview" style="width:40px;height:40px;border-radius:4px;background:#eee;background-size:cover;background-position:center;display:none"></div>
+          </div>
+        </div>
         <div class="form-group">
           <label class="form-label">Duration (minutes) *</label>
           <input class="form-control" id="f-duration" type="number" min="5" placeholder="60">
@@ -101,6 +109,34 @@
         </div>
       </div>
 
+      <div class="section-title" style="margin:16px 0 12px">🏢 Amenities & Environment</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="form-group">
+          <label class="form-label">Parking Available</label>
+          <label class="toggle-wrap" style="margin-top:4px">
+            <span id="f-parking-toggle" class="toggle" onclick="toggleField('f-parking-toggle','has_parking', 'Yes', 'No')"></span>
+            <span style="font-size:13px" id="f-parking-label">No</span>
+          </label>
+          <input type="hidden" id="has_parking" value="false">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Wheelchair Access</label>
+          <label class="toggle-wrap" style="margin-top:4px">
+            <span id="f-wheelchair-toggle" class="toggle" onclick="toggleField('f-wheelchair-toggle','is_wheelchair_accessible', 'Yes', 'No')"></span>
+            <span style="font-size:13px" id="f-wheelchair-label">No</span>
+          </label>
+          <input type="hidden" id="is_wheelchair_accessible" value="false">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Noise Level</label>
+          <select class="form-control" id="f-noise-level" style="margin-top:4px">
+            <option value="quiet">Quiet</option>
+            <option value="moderate" selected>Moderate</option>
+            <option value="loud">Loud</option>
+          </select>
+        </div>
+      </div>
+
       <div id="error-msg" class="form-error d-none" style="margin-bottom:8px"></div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeModal('service-modal')">Cancel</button>
@@ -123,7 +159,18 @@
         <div class="form-group">
           <input class="form-control" id="new-q-text" placeholder="e.g. What is your main concern?">
         </div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div class="form-group" style="margin-top:12px">
+          <label class="form-label">Question Type</label>
+          <select class="form-control" id="new-q-type" onchange="document.getElementById('mcq-options-group').style.display = this.value === 'mcq' ? 'block' : 'none'">
+            <option value="text">Text Answer</option>
+            <option value="mcq">Multiple Choice</option>
+          </select>
+        </div>
+        <div class="form-group" id="mcq-options-group" style="display:none;margin-top:12px">
+          <label class="form-label">Choices (comma separated)</label>
+          <input class="form-control" id="new-q-options" placeholder="e.g. Yes, No, Maybe">
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;margin-top:12px">
           <label class="toggle-wrap">
             <span id="new-q-req-toggle" class="toggle" onclick="toggleNewQReq()"></span>
             <span style="font-size:13px">Required</span>
@@ -136,6 +183,6 @@
   </div>
 
   <script src="/js/api.js"></script>
-  <script src="/js/appointments.js"></script>
+  <script src="/js/appointments.js?v=6"></script>
 </body>
 </html>

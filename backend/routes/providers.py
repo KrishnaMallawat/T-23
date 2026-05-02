@@ -184,6 +184,9 @@ def organiser_stats():
             COUNT(DISTINCT b.customer_id)                                 AS unique_customers,
             ROUND(AVG(pbs.punctuality_score), 2)                          AS avg_punctuality,
             ROUND(AVG(pbs.quality_score), 2)                              AS avg_quality,
+            ROUND(AVG(pbs.environment_score), 2)                          AS avg_environment,
+            ROUND(AVG(pbs.parking_score), 2)                              AS avg_parking,
+            ROUND(AVG(pbs.accessibility_score), 2)                        AS avg_accessibility,
             COALESCE(MAX(pbs.total_reviews), 0)                           AS total_reviews
         FROM bookings b
         JOIN slots s ON s.id=b.slot_id

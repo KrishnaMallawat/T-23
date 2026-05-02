@@ -56,6 +56,9 @@ function bookingCard(b) {
   if (isCompleted && !b.has_feedback) {
     actions.push(`<a href="/feedback?booking_id=${b.id}" class="btn btn-secondary btn-sm">⭐ Leave Feedback</a>`);
   }
+  if (b.status === 'cancelled' && b.cancellation_reason) {
+    actions.push(`<button class="btn btn-ghost btn-sm" onclick="viewReason(${b.id})">💬 View Reason</button>`);
+  }
 
   var providerLink = b.organiser_id ? '/provider?id=' + b.organiser_id : '#';
 
@@ -168,5 +171,12 @@ async function doReschedule() {
 
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function viewReason(id) {
+  const b = allBookings.find(x => x.id === id);
+  if (!b) return;
+  document.getElementById('reason-text').textContent = b.cancellation_reason || 'No reason provided.';
+  openModal('reason-modal');
+}
 
 init();

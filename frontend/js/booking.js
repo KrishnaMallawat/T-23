@@ -27,7 +27,8 @@ async function init() {
 function renderStep1() {
   const payLabel = { none:'Free', optional_advance:'Optional advance payment', mandatory_advance:'Advance payment required' };
   document.getElementById('booking-container').innerHTML = `
-    <div class="card card-elevated" style="padding:28px;margin-bottom:24px">
+    ${appt.image_url ? `<img src="${appt.image_url}" style="width:100%;height:200px;object-fit:cover;border-radius:12px 12px 0 0;margin-bottom:-16px;position:relative;z-index:1" alt="Service Image">` : ''}
+    <div class="card card-elevated" style="padding:28px;margin-bottom:24px;position:relative;z-index:2">
       <h2 style="margin-bottom:4px">${appt.title}</h2>
       <p style="color:var(--gray-600);margin-bottom:16px">${appt.description || ''}</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
@@ -37,6 +38,30 @@ function renderStep1() {
         ${appt.payment_amount > 0 ? `<span class="badge badge-purple">₹${appt.payment_amount}</span>` : ''}
         ${appt.allow_cancellation ? `<span class="badge badge-confirmed">✅ Cancellable (${appt.cancellation_cutoff_hours}h cutoff)</span>` : `<span class="badge badge-cancelled">⚠️ No cancellation</span>`}
         ${appt.allow_rescheduling ? `<span class="badge badge-confirmed">🔄 Reschedulable</span>` : ''}
+      </div>
+      
+      <!-- Amenities and Behavioral Scores -->
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--gray-200);display:grid;grid-template-columns:1fr 1fr;gap:24px">
+        <div>
+          <h4 style="margin-bottom:12px;font-size:14px;color:var(--gray-800)">🏢 Service Environment</h4>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${appt.has_parking ? `<span class="badge" style="background:var(--gray-100);color:var(--gray-800)">🅿️ Parking Available</span>` : ''}
+            ${appt.is_wheelchair_accessible ? `<span class="badge" style="background:var(--gray-100);color:var(--gray-800)">♿ Wheelchair Accessible</span>` : ''}
+            ${appt.noise_level ? `<span class="badge" style="background:var(--gray-100);color:var(--gray-800)">🔊 Noise: ${appt.noise_level}</span>` : ''}
+            ${!appt.has_parking && !appt.is_wheelchair_accessible && !appt.noise_level ? '<span style="font-size:13px;color:var(--gray-500)">No specific amenities listed.</span>' : ''}
+          </div>
+        </div>
+        <div>
+          <h4 style="margin-bottom:12px;font-size:14px;color:var(--gray-800)">⭐ Provider Ratings</h4>
+          ${appt.total_reviews ? `
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--gray-700)">
+              <div style="display:flex;justify-content:space-between"><span>Punctuality</span><strong>${appt.punctuality_score}/5</strong></div>
+              <div style="display:flex;justify-content:space-between"><span>Quality</span><strong>${appt.quality_score}/5</strong></div>
+              <div style="display:flex;justify-content:space-between"><span>Avg Delay</span><strong>${appt.avg_delay_mins} min</strong></div>
+              <div style="font-size:12px;color:var(--gray-500);margin-top:4px">Based on ${appt.total_reviews} reviews</div>
+            </div>
+          ` : '<span style="font-size:13px;color:var(--gray-500)">No reviews yet.</span>'}
+        </div>
       </div>
     </div>
 
@@ -57,11 +82,29 @@ function renderStep1() {
     ${questions.length ? `
     <div id="questions-section" class="card d-none" style="padding:24px;margin-bottom:24px">
       <h3 style="margin-bottom:16px">3. Answer a few questions</h3>
-      <div id="questions-form">${questions.map(q => `
+      <div id="questions-form">${questions.map(q => {
+        const reqStr = q.is_required ? ' <span style="color:var(--danger)">*</span>' : '';
+        let inputHtml = '';
+        if (q.question_type === 'mcq' && q.options) {
+          let opts = [];
+          try { opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options; } catch(e){}
+          if (opts.length) {
+            inputHtml = `<select class="form-control" id="q-${q.id}" ${q.is_required ? 'required' : ''}>
+              <option value="" disabled selected>Select an option</option>
+              ${opts.map(o => `<option value="${o.replace(/"/g,'&quot;')}">${o}</option>`).join('')}
+            </select>`;
+          } else {
+            inputHtml = `<textarea class="form-control" id="q-${q.id}" rows="2" ${q.is_required ? 'required' : ''}></textarea>`;
+          }
+        } else {
+          inputHtml = `<textarea class="form-control" id="q-${q.id}" rows="2" ${q.is_required ? 'required' : ''}></textarea>`;
+        }
+        return `
         <div class="form-group">
-          <label class="form-label" for="q-${q.id}">${q.question_text}${q.is_required ? ' <span style="color:var(--danger)">*</span>' : ''}</label>
-          <textarea class="form-control" id="q-${q.id}" rows="2" ${q.is_required ? 'required' : ''}></textarea>
-        </div>`).join('')}
+          <label class="form-label" for="q-${q.id}">${q.question_text}${reqStr}</label>
+          ${inputHtml}
+        </div>`;
+      }).join('')}
       </div>
     </div>` : ''}
 
@@ -109,15 +152,16 @@ function selectSlot(id) {
 async function confirmBooking() {
   if (!selSlot) { toast('Please select a time slot.', 'error'); return; }
 
-  const answers = questions.map(q => {
+  const answers = {};
+  for (const q of questions) {
     const el = document.getElementById('q-' + q.id);
-    return { question_id: q.id, answer_text: el ? el.value.trim() : '' };
-  }).filter(a => a.answer_text);
-
-  // Check required
-  for (const q of questions.filter(q => q.is_required)) {
-    const el = document.getElementById('q-' + q.id);
-    if (!el || !el.value.trim()) { toast('Please answer all required questions.', 'error'); el?.focus(); return; }
+    const val = el ? el.value.trim() : '';
+    if (q.is_required && !val) {
+      toast('Please answer all required questions.', 'error');
+      el?.focus();
+      return;
+    }
+    if (val) answers[q.id] = val;
   }
 
   const btn = document.getElementById('confirm-btn');

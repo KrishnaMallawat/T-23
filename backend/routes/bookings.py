@@ -21,7 +21,7 @@ def create_booking():
     slot = db.execute(
         """
         SELECT s.id, s.organiser_id, s.capacity, s.booked_count, s.status,
-               s.slot_start, s.slot_end,
+               s.slot_start, s.slot_end, s.appointment_type_id,
                at.title AS service_title, at.manual_confirmation,
                u.full_name AS organiser_name, u.email AS organiser_email
         FROM slots s
@@ -38,7 +38,24 @@ def create_booking():
     if slot["booked_count"] >= slot["capacity"]:
         return error("This slot is fully booked")
 
+    # Validate answers
+    questions = db.execute(
+        "SELECT id, is_required FROM appointment_questions WHERE appointment_type_id=%s",
+        (slot["appointment_type_id"],), fetch="all"
+    ) or []
+    
+    # Check if required questions are answered
+    for q in questions:
+        if q["is_required"] and str(q["id"]) not in answers:
+            return error(f"Question {q['id']} is required")
+
     initial_status = "pending" if slot["manual_confirmation"] else "confirmed"
+
+    # Remove any old cancelled/no-show booking for this slot+customer so rebooking works
+    db.execute(
+        "DELETE FROM bookings WHERE slot_id=%s AND customer_id=%s AND status IN ('cancelled','no_show')",
+        (slot_id, request.user_id),
+    )
 
     try:
         booking_id = db.execute(
@@ -51,19 +68,21 @@ def create_booking():
             return error("You have already booked this slot", 409)
         raise
 
+    # Insert answers
+    for qid_str, answer_val in answers.items():
+        if not answer_val:
+            continue
+        db.execute(
+            "INSERT INTO booking_answers (booking_id, question_id, answer_text) VALUES (%s,%s,%s)",
+            (booking_id, int(qid_str), str(answer_val))
+        )
+
     new_count  = slot["booked_count"] + 1
     new_status = "full" if new_count >= slot["capacity"] else "available"
     db.execute(
         "UPDATE slots SET booked_count=%s, status=%s WHERE id=%s",
         (new_count, new_status, slot_id),
     )
-
-    for ans in answers:
-        if ans.get("question_id") and ans.get("answer_text"):
-            db.execute(
-                "INSERT INTO booking_answers (booking_id, question_id, answer_text) VALUES (%s,%s,%s)",
-                (booking_id, ans["question_id"], ans["answer_text"]),
-            )
 
     try:
         customer = db.execute("SELECT full_name, email FROM users WHERE id=%s", (request.user_id,), fetch="one")
@@ -92,7 +111,7 @@ def create_booking():
 def my_bookings():
     rows = db.execute(
         """
-        SELECT b.id, b.status, b.booked_at, b.cancelled_at, b.slot_id,
+        SELECT b.id, b.status, b.booked_at, b.cancelled_at, b.cancellation_reason, b.slot_id,
                s.slot_start, s.slot_end, s.organiser_id,
                at.id AS appt_type_id, at.title AS service_title, at.duration_mins,
                u.full_name AS organiser_name,
@@ -114,14 +133,18 @@ def my_bookings():
 def organiser_bookings():
     status_filter = request.args.get("status")
     query = """
-        SELECT b.id, b.status, b.booked_at,
+        SELECT b.id, b.status, b.booked_at, b.cancellation_reason,
                s.slot_start, s.slot_end,
                at.title AS service_title,
-               u.full_name AS customer_name, u.email AS customer_email
+               u.full_name AS customer_name, u.email AS customer_email,
+               af.punctuality_rating, af.quality_rating, af.environment_rating,
+               af.parking_rating, af.accessibility_rating,
+               af.text_review, af.session_overran, af.provider_style
         FROM bookings b
         JOIN slots s ON s.id=b.slot_id
         JOIN appointment_types at ON at.id=s.appointment_type_id
         JOIN users u ON u.id=b.customer_id
+        LEFT JOIN appointment_feedback af ON af.booking_id = b.id
         WHERE s.organiser_id=%s
     """
     params = [request.user_id]
@@ -130,8 +153,33 @@ def organiser_bookings():
         params.append(status_filter)
     query += " ORDER BY s.slot_start DESC"
 
-    rows = db.execute(query, params, fetch="all")
-    return success([dict(r) for r in (rows or [])])
+    rows = db.execute(query, tuple(params), fetch="all") or []
+    bookings = [dict(r) for r in rows]
+    
+    if bookings:
+        b_ids = [b["id"] for b in bookings]
+        format_strings = ','.join(['%s'] * len(b_ids))
+        answers = db.execute(
+            f"""
+            SELECT a.booking_id, q.question_text, a.answer_text 
+            FROM booking_answers a 
+            JOIN appointment_questions q ON q.id = a.question_id 
+            WHERE a.booking_id IN ({format_strings})
+            """,
+            tuple(b_ids), fetch="all"
+        ) or []
+        
+        ans_map = {}
+        for a in answers:
+            ans_map.setdefault(a["booking_id"], []).append({
+                "question": a["question_text"],
+                "answer": a["answer_text"]
+            })
+            
+        for b in bookings:
+            b["answers"] = ans_map.get(b["id"], [])
+
+    return success(bookings)
 
 
 @bookings_bp.route("/bookings/<int:booking_id>/cancel", methods=["PATCH"])

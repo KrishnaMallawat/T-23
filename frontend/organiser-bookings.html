@@ -25,7 +25,40 @@
       <div id="bookings-container"><div class="spinner"></div></div>
     </div>
   </div>
+  <!-- Reason Modal -->
+  <div id="reason-modal" class="modal">
+    <div class="modal-box">
+      <h3>Cancellation Reason</h3>
+      <p id="reason-text" class="text-muted" style="margin:16px 0;white-space:pre-wrap;background:var(--gray-50);padding:16px;border-radius:8px;border:1px solid var(--gray-200)"></p>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeModal('reason-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feedback Modal -->
+  <div id="feedback-modal" class="modal">
+    <div class="modal-box">
+      <h3>Customer Feedback</h3>
+      <div id="feedback-content" style="margin-top:16px"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:24px">
+        <button class="btn btn-secondary" onclick="closeModal('feedback-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form Modal -->
+  <div id="form-modal" class="modal">
+    <div class="modal-box">
+      <h3>Intake Form Answers</h3>
+      <div id="form-content" style="margin-top:16px;max-height:60vh;overflow-y:auto;padding-right:8px"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:24px">
+        <button class="btn btn-secondary" onclick="closeModal('form-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/api.js"></script>
-  <script src="/js/organiser-bookings.js"></script>
+  <script src="/js/organiser-bookings.js?v=6"></script>
 </body>
 </html>

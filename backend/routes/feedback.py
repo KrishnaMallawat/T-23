@@ -35,6 +35,8 @@ def submit_feedback(booking_id):
     punctuality     = data.get("punctuality_rating")
     quality         = data.get("quality_rating")
     environment     = data.get("environment_rating")
+    parking_rating  = data.get("parking_rating")
+    access_rating   = data.get("accessibility_rating")
     session_overran = bool(data.get("session_overran", False))
     avg_delay       = int(data.get("avg_delay_mins", 0))
     style           = data.get("provider_style")
@@ -46,7 +48,9 @@ def submit_feedback(booking_id):
 
     for label, val in [("punctuality_rating", punctuality),
                        ("quality_rating",     quality),
-                       ("environment_rating", environment)]:
+                       ("environment_rating", environment),
+                       ("parking_rating",     parking_rating),
+                       ("accessibility_rating", access_rating)]:
         if val is not None and not (1 <= int(val) <= 5):
             return error(f"{label} must be between 1 and 5")
 
@@ -55,10 +59,11 @@ def submit_feedback(booking_id):
         """
         INSERT INTO appointment_feedback
             (booking_id, punctuality_rating, quality_rating, environment_rating,
+             parking_rating, accessibility_rating,
              session_overran, avg_delay_mins, provider_style, text_review)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """,
-        (booking_id, punctuality, quality, environment,
+        (booking_id, punctuality, quality, environment, parking_rating, access_rating,
          session_overran, avg_delay, style, text_review),
     )
 
@@ -78,7 +83,9 @@ def _recalculate_provider_scores(provider_id: int):
             ROUND(AVG(avg_delay_mins), 2)                AS avg_delay_mins,
             ROUND(SUM(CASE WHEN session_overran THEN 1 ELSE 0 END) / COUNT(*), 4) AS overrun_rate,
             ROUND(AVG(quality_rating), 2)                AS quality_score,
-            ROUND(AVG(environment_rating), 2)            AS environment_score
+            ROUND(AVG(environment_rating), 2)            AS environment_score,
+            ROUND(AVG(parking_rating), 2)                AS parking_score,
+            ROUND(AVG(accessibility_rating), 2)          AS accessibility_score
         FROM appointment_feedback af
         JOIN bookings b ON b.id=af.booking_id
         JOIN slots s    ON s.id=b.slot_id
@@ -93,17 +100,20 @@ def _recalculate_provider_scores(provider_id: int):
         """
         INSERT INTO provider_behavioral_scores
             (provider_id, punctuality_score, avg_delay_mins, overrun_rate,
-             quality_score, environment_score, total_reviews)
-        VALUES (%s,%s,%s,%s,%s,%s,%s)
+             quality_score, environment_score, parking_score, accessibility_score, total_reviews)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON DUPLICATE KEY UPDATE
             punctuality_score=VALUES(punctuality_score),
             avg_delay_mins=VALUES(avg_delay_mins),
             overrun_rate=VALUES(overrun_rate),
             quality_score=VALUES(quality_score),
             environment_score=VALUES(environment_score),
+            parking_score=VALUES(parking_score),
+            accessibility_score=VALUES(accessibility_score),
             total_reviews=VALUES(total_reviews)
         """,
         (provider_id, agg["punctuality_score"], agg["avg_delay_mins"],
          agg["overrun_rate"], agg["quality_score"], agg["environment_score"],
+         agg["parking_score"], agg["accessibility_score"],
          agg["total_reviews"]),
     )

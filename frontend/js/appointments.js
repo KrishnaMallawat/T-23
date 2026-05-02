@@ -5,7 +5,7 @@ let appts = [];
 let currentQApptId = null;
 
 // ── Toggle helpers ───────────────────────────────────────────
-function toggleField(toggleId, hiddenId) {
+function toggleField(toggleId, hiddenId, onLabel, offLabel) {
   const t  = document.getElementById(toggleId);
   const h  = document.getElementById(hiddenId);
   const on = !t.classList.contains('on');
@@ -13,7 +13,8 @@ function toggleField(toggleId, hiddenId) {
   h.value = String(on);
   const lbl = document.getElementById(toggleId.replace('-toggle','-label'));
   if (lbl) {
-    if (hiddenId === 'manual_confirmation') lbl.textContent = on ? 'Manual confirm' : 'Auto-confirm';
+    if (onLabel && offLabel) lbl.textContent = on ? onLabel : offLabel;
+    else if (hiddenId === 'manual_confirmation') lbl.textContent = on ? 'Manual confirm' : 'Auto-confirm';
     else lbl.textContent = on ? 'Allowed' : 'Disabled';
   }
 }
@@ -67,6 +68,7 @@ function apptCard(a) {
           <span>👥 Cap: ${a.max_capacity}</span>
           <span>💳 ${payLabel[a.payment_requirement]||'Free'}</span>
           ${a.payment_amount > 0 ? `<span>₹${a.payment_amount}</span>` : ''}
+          ${a.image_url ? `<span>🖼️ Image Attached</span>` : ''}
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -84,16 +86,50 @@ function apptCard(a) {
 function openCreateModal() {
   document.getElementById('modal-title').textContent = 'New Service';
   document.getElementById('save-service-btn').textContent = 'Create Service';
-  ['f-title','f-desc','f-duration'].forEach(id => document.getElementById(id).value = '');
+  ['f-title','f-desc','f-duration','f-image-url','f-image-file'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-capacity').value = '1';
   document.getElementById('f-payment').value  = 'none';
   document.getElementById('f-pay-amt').value  = '0';
   document.getElementById('f-cutoff').value   = '24';
   document.getElementById('f-refund-before').value = '100';
   document.getElementById('f-refund-after').value  = '0';
+  document.getElementById('has_parking').value = 'false';
+  document.getElementById('is_wheelchair_accessible').value = 'false';
+  document.getElementById('f-noise-level').value = 'moderate';
+  document.getElementById('f-parking-toggle').classList.remove('on');
+  document.getElementById('f-parking-label').textContent = 'No';
+  document.getElementById('f-wheelchair-toggle').classList.remove('on');
+  document.getElementById('f-wheelchair-label').textContent = 'No';
   document.getElementById('error-msg').classList.add('d-none');
+  document.getElementById('image-preview').style.display = 'none';
   togglePayAmt();
   openModal('service-modal');
+}
+
+async function uploadServiceImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  try {
+    const res = await fetch(BASE + '/api/upload', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + getToken() },
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    
+    document.getElementById('f-image-url').value = data.data.url;
+    const pv = document.getElementById('image-preview');
+    pv.style.display = 'block';
+    pv.style.backgroundImage = `url(${data.data.url})`;
+    toast('Image uploaded successfully', 'success');
+  } catch(err) {
+    toast(err.message, 'error');
+    event.target.value = '';
+  }
 }
 
 async function saveService() {
@@ -111,6 +147,7 @@ async function saveService() {
     const body = {
       title, duration_mins: duration,
       description:           document.getElementById('f-desc').value.trim(),
+      image_url:             document.getElementById('f-image-url').value || null,
       max_capacity:          parseInt(document.getElementById('f-capacity').value) || 1,
       payment_requirement:   document.getElementById('f-payment').value,
       payment_amount:        parseFloat(document.getElementById('f-pay-amt').value) || 0,
@@ -120,6 +157,9 @@ async function saveService() {
       refund_percent_before_cutoff: parseInt(document.getElementById('f-refund-before').value) || 100,
       refund_percent_after_cutoff:  parseInt(document.getElementById('f-refund-after').value) || 0,
       manual_confirmation:   document.getElementById('manual_confirmation').value === 'true',
+      has_parking:           document.getElementById('has_parking').value === 'true',
+      is_wheelchair_accessible: document.getElementById('is_wheelchair_accessible').value === 'true',
+      noise_level:           document.getElementById('f-noise-level').value,
     };
     await api('/api/appointments', { method:'POST', body });
     toast('Service created!', 'success');
@@ -166,14 +206,30 @@ async function loadQuestions() {
       document.getElementById('questions-list').innerHTML = '<p class="text-muted">No questions yet.</p>';
       return;
     }
-    document.getElementById('questions-list').innerHTML = qs.map(q => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+    document.getElementById('questions-list').innerHTML = qs.map(q => {
+      const typeStr = q.question_type === 'mcq' ? 'MCQ' : 'Text';
+      let optionsStr = '';
+      if (q.question_type === 'mcq' && q.options) {
+        try {
+          const opts = typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
+          if (Array.isArray(opts)) {
+            optionsStr = `<div style="font-size:12px;color:var(--gray-500);margin-top:4px">Options: ${opts.join(', ')}</div>`;
+          }
+        } catch(e){}
+      }
+      return `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--gray-100)">
         <div>
-          <span style="font-size:14px">${q.question_text}</span>
-          ${q.is_required ? ' <span class="badge badge-purple" style="font-size:10px">Required</span>' : ''}
+          <div style="font-size:14px;font-weight:600">${q.question_text}</div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <span class="badge badge-purple" style="font-size:10px">${typeStr}</span>
+            ${q.is_required ? '<span class="badge badge-danger" style="font-size:10px">Required</span>' : ''}
+          </div>
+          ${optionsStr}
         </div>
-        <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${q.id})">✕</button>
-      </div>`).join('');
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteQuestion(${q.id})">✕ Remove</button>
+      </div>`;
+    }).join('');
   } catch(err) {
     document.getElementById('questions-list').innerHTML = `<p style="color:var(--danger)">${err.message}</p>`;
   }
@@ -181,13 +237,30 @@ async function loadQuestions() {
 
 async function addQuestion() {
   const text = document.getElementById('new-q-text').value.trim();
+  const qtype = document.getElementById('new-q-type').value;
+  const optsRaw = document.getElementById('new-q-options').value;
+  
   if (!text) { toast('Question text is required.', 'error'); return; }
+  
+  let options = [];
+  if (qtype === 'mcq') {
+    options = optsRaw.split(',').map(s => s.trim()).filter(s => s);
+    if (!options.length) { toast('Multiple choice requires options.', 'error'); return; }
+  }
+
   try {
     await api('/api/appointments/' + currentQApptId + '/questions', {
       method:'POST',
-      body: { question_text: text, is_required: document.getElementById('new-q-required').value === 'true', order_index: 0 }
+      body: { 
+        question_text: text, 
+        is_required: document.getElementById('new-q-required').value === 'true', 
+        order_index: 0,
+        question_type: qtype,
+        options: options
+      }
     });
     document.getElementById('new-q-text').value = '';
+    document.getElementById('new-q-options').value = '';
     toast('Question added!', 'success');
     await loadQuestions();
   } catch(err) { toast(err.message, 'error'); }

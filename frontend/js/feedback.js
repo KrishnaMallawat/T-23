@@ -2,14 +2,14 @@ if (!requireAuth(['customer'])) throw new Error('auth');
 buildNav('/my-bookings.html');
 
 const bookingId = new URLSearchParams(location.search).get('booking_id');
-if (!bookingId) window.location.href = '/my-bookings.html';
+if (!bookingId) window.location.href = '/my-bookings';
 
-const ratings  = { punctuality_rating: 0, quality_rating: 0, environment_rating: 0 };
+const ratings  = { punctuality_rating: 0, quality_rating: 0, environment_rating: 0, parking_rating: 0, accessibility_rating: 0 };
 let overrun    = false;
 let style      = null;
 
 // Build star widgets
-['punctuality', 'quality', 'environment'].forEach(key => {
+['punctuality', 'quality', 'environment', 'parking', 'accessibility'].forEach(key => {
   const container = document.getElementById('stars-' + key);
   for (let i = 1; i <= 5; i++) {
     const span = document.createElement('span');
@@ -58,6 +58,8 @@ async function submitFeedback() {
     punctuality_rating:  ratings.punctuality_rating  || null,
     quality_rating:      ratings.quality_rating      || null,
     environment_rating:  ratings.environment_rating  || null,
+    parking_rating:      ratings.parking_rating      || null,
+    accessibility_rating: ratings.accessibility_rating || null,
     session_overran:     overrun,
     avg_delay_mins:      overrun ? parseInt(document.getElementById('avg-delay').value) || 0 : 0,
     provider_style:      style,
@@ -69,7 +71,7 @@ async function submitFeedback() {
   try {
     await api('/api/feedback/' + bookingId, { method:'POST', body });
     toast('Thank you for your feedback! 🎉', 'success');
-    setTimeout(() => window.location.href = '/my-bookings.html', 1500);
+    setTimeout(() => window.location.href = '/my-bookings', 1500);
   } catch(err) {
     errEl.textContent = err.message;
     errEl.classList.remove('d-none');

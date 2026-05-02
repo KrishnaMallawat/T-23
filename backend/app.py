@@ -16,6 +16,7 @@ from routes.bookings     import bookings_bp
 from routes.slots        import slots_bp
 from routes.feedback     import feedback_bp
 from routes.admin        import admin_bp
+from routes.uploads      import uploads_bp
 
 # ── Create app ────────────────────────────────────────────────
 app = Flask(__name__)
@@ -32,6 +33,7 @@ app.register_blueprint(bookings_bp)
 app.register_blueprint(slots_bp)
 app.register_blueprint(feedback_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(uploads_bp)
 
 
 import traceback

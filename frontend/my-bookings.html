@@ -61,6 +61,20 @@
     </div>
   </div>
 
+  <!-- Reason Modal -->
+  <div class="modal-overlay" id="reason-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Cancellation Reason</h3>
+        <button class="modal-close" onclick="closeModal('reason-modal')">✕</button>
+      </div>
+      <p id="reason-text" class="text-muted" style="margin:16px 0;white-space:pre-wrap;background:var(--gray-50);padding:16px;border-radius:8px;border:1px solid var(--gray-200)"></p>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('reason-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/api.js"></script>
   <script src="/js/my-bookings.js?v=99"></script>
 </body>
