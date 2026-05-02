@@ -33,11 +33,11 @@ CREATE TABLE password_reset_tokens (
 
 CREATE TABLE user_preferences (
     user_id              INT NOT NULL PRIMARY KEY,
-    cares_punctuality    BOOLEAN NOT NULL DEFAULT FALSE,
-    cares_quality        BOOLEAN NOT NULL DEFAULT FALSE,
-    cares_quiet_env      BOOLEAN NOT NULL DEFAULT FALSE,
-    cares_parking        BOOLEAN NOT NULL DEFAULT FALSE,
-    cares_accessibility  BOOLEAN NOT NULL DEFAULT FALSE,
+    punctuality_weight   INT NOT NULL DEFAULT 0,
+    quality_weight       INT NOT NULL DEFAULT 0,
+    environment_weight   INT NOT NULL DEFAULT 0,
+    parking_weight       INT NOT NULL DEFAULT 0,
+    accessibility_weight INT NOT NULL DEFAULT 0,
     updated_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -159,11 +159,11 @@ CREATE TABLE appointment_feedback (
 
 CREATE TABLE provider_behavioral_scores (
     provider_id       INT NOT NULL PRIMARY KEY,
-    punctuality_score DECIMAL(3,2) DEFAULT 0,
+    punctuality_score DECIMAL(5,2) DEFAULT 0,
     avg_delay_mins    DECIMAL(5,2) DEFAULT 0,
     overrun_rate      DECIMAL(5,4) DEFAULT 0,
-    quality_score     DECIMAL(3,2) DEFAULT 0,
-    environment_score DECIMAL(3,2) DEFAULT 0,
+    quality_score     DECIMAL(5,2) DEFAULT 0,
+    environment_score DECIMAL(5,2) DEFAULT 0,
     total_reviews     INT NOT NULL DEFAULT 0,
     last_updated      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (provider_id) REFERENCES users(id) ON DELETE CASCADE

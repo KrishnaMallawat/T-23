@@ -45,19 +45,21 @@ def seed_database():
     print("Seeding Preferences and Provider Info...")
     for cust_id in customers:
         cursor.execute("""
-            INSERT INTO user_preferences (user_id, cares_punctuality, cares_quality) 
-            VALUES (%s, %s, %s)
-        """, (cust_id, random.choice([True, False]), random.choice([True, False])))
+            INSERT INTO user_preferences (user_id, punctuality_weight, quality_weight, environment_weight, parking_weight, accessibility_weight) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (cust_id, random.randint(0, 100), random.randint(0, 100), random.randint(0, 100), random.randint(0, 100), random.randint(0, 100)))
 
     for org_id in organisers:
         cursor.execute("""
-            INSERT INTO provider_info (provider_id, bio, has_parking, noise_level) 
-            VALUES (%s, %s, %s, %s)
-        """, (org_id, fake.text(max_nb_chars=100), random.choice([True, False]), random.choice(['quiet', 'moderate', 'loud'])))
-        
-        cursor.execute("""
-            INSERT INTO provider_behavioral_scores (provider_id) VALUES (%s)
-        """, (org_id,))
+            INSERT INTO provider_info (provider_id, bio, has_parking) 
+            VALUES (%s, %s, %s)
+        """, (org_id, fake.text(max_nb_chars=100), random.choice([True, False])))
+
+        for day in range(1, 6):
+            cursor.execute("""
+                INSERT INTO working_hours (organiser_id, day_of_week, start_time, end_time, is_active)
+                VALUES (%s, %s, '09:00:00', '17:00:00', 1)
+            """, (org_id, day))
         
     conn.commit()
 
@@ -77,7 +79,13 @@ def seed_database():
                 org_id, fake.job() + " Consultation", fake.catch_phrase(), duration, 
                 True, payment_req, amount, True
             ))
-            appointment_types.append((cursor.lastrowid, org_id, duration))
+            at_id = cursor.lastrowid
+            appointment_types.append((at_id, org_id, duration))
+
+            cursor.execute("""
+                INSERT INTO appointment_questions (appointment_type_id, question_text, is_required)
+                VALUES (%s, %s, %s)
+            """, (at_id, fake.sentence(nb_words=6)[:-1] + "?", random.choice([True, False])))
 
     conn.commit()
 
@@ -105,17 +113,71 @@ def seed_database():
     booked_slots = random.sample(slots, min(100, len(slots)))
     for slot_id in booked_slots:
         cust_id = random.choice(customers)
-        status = random.choice(['confirmed', 'pending'])
+        status = random.choice(['confirmed', 'pending', 'completed'])
         payment_status = random.choice(['paid', 'unpaid'])
         
         cursor.execute("""
             INSERT INTO bookings (slot_id, customer_id, status, payment_status) 
             VALUES (%s, %s, %s, %s)
         """, (slot_id, cust_id, status, payment_status))
+        booking_id = cursor.lastrowid
         
-        # Mark slot as full
         cursor.execute("UPDATE slots SET booked_count = 1, status = 'full' WHERE id = %s", (slot_id,))
+
+        cursor.execute("""
+            SELECT q.id FROM appointment_questions q
+            JOIN slots s ON s.appointment_type_id = q.appointment_type_id
+            WHERE s.id = %s
+        """, (slot_id,))
+        q_row = cursor.fetchone()
+        if q_row:
+            cursor.execute("""
+                INSERT INTO booking_answers (booking_id, question_id, answer_text)
+                VALUES (%s, %s, %s)
+            """, (booking_id, q_row[0], fake.sentence(nb_words=3)[:-1]))
+            
+        if status == 'completed':
+            cursor.execute("""
+                INSERT INTO appointment_feedback (booking_id, punctuality_rating, quality_rating, environment_rating, session_overran, avg_delay_mins, provider_style, text_review)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (booking_id, random.randint(60, 100), random.randint(60, 100), random.randint(60, 100), random.choice([True, False]), random.randint(0, 15), random.choice(['professional', 'friendly', 'technical', 'casual']), fake.sentence()[:-1]))
         
+    conn.commit()
+
+    print("Calculating Provider Scores from Feedback...")
+    for org_id in organisers:
+        cursor.execute("""
+            SELECT
+                COUNT(*)                                     AS total_reviews,
+                ROUND(AVG(punctuality_rating), 2)            AS punctuality_score,
+                ROUND(AVG(avg_delay_mins), 2)                AS avg_delay_mins,
+                ROUND(SUM(CASE WHEN session_overran THEN 1 ELSE 0 END) / COUNT(*), 4) AS overrun_rate,
+                ROUND(AVG(quality_rating), 2)                AS quality_score,
+                ROUND(AVG(environment_rating), 2)            AS environment_score
+            FROM appointment_feedback af
+            JOIN bookings b ON b.id=af.booking_id
+            JOIN slots s    ON s.id=b.slot_id
+            WHERE s.organiser_id=%s
+        """, (org_id,))
+        agg = cursor.fetchone()
+        if agg and agg[0] > 0:
+            cursor.execute("""
+                INSERT INTO provider_behavioral_scores
+                    (provider_id, punctuality_score, avg_delay_mins, overrun_rate,
+                     quality_score, environment_score, total_reviews)
+                VALUES (%s,%s,%s,%s,%s,%s,%s)
+                ON DUPLICATE KEY UPDATE
+                    punctuality_score=VALUES(punctuality_score),
+                    avg_delay_mins=VALUES(avg_delay_mins),
+                    overrun_rate=VALUES(overrun_rate),
+                    quality_score=VALUES(quality_score),
+                    environment_score=VALUES(environment_score),
+                    total_reviews=VALUES(total_reviews)
+            """, (org_id, agg[1], agg[2], agg[3], agg[4], agg[5], agg[0]))
+        else:
+            cursor.execute("""
+                INSERT INTO provider_behavioral_scores (provider_id) VALUES (%s)
+            """, (org_id,))
     conn.commit()
 
     print("Database seeded successfully!")
