@@ -26,33 +26,42 @@
     </div>
   </div>
   <!-- Reason Modal -->
-  <div id="reason-modal" class="modal">
-    <div class="modal-box">
-      <h3>Cancellation Reason</h3>
+  <div class="modal-overlay" id="reason-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Cancellation Reason</h3>
+        <button class="modal-close" onclick="closeModal('reason-modal')">✕</button>
+      </div>
       <p id="reason-text" class="text-muted" style="margin:16px 0;white-space:pre-wrap;background:var(--gray-50);padding:16px;border-radius:8px;border:1px solid var(--gray-200)"></p>
-      <div style="display:flex;justify-content:flex-end">
+      <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('reason-modal')">Close</button>
       </div>
     </div>
   </div>
 
   <!-- Feedback Modal -->
-  <div id="feedback-modal" class="modal">
-    <div class="modal-box">
-      <h3>Customer Feedback</h3>
+  <div class="modal-overlay" id="feedback-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Customer Feedback</h3>
+        <button class="modal-close" onclick="closeModal('feedback-modal')">✕</button>
+      </div>
       <div id="feedback-content" style="margin-top:16px"></div>
-      <div style="display:flex;justify-content:flex-end;margin-top:24px">
+      <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('feedback-modal')">Close</button>
       </div>
     </div>
   </div>
 
   <!-- Form Modal -->
-  <div id="form-modal" class="modal">
-    <div class="modal-box">
-      <h3>Intake Form Answers</h3>
+  <div class="modal-overlay" id="form-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Intake Form Answers</h3>
+        <button class="modal-close" onclick="closeModal('form-modal')">✕</button>
+      </div>
       <div id="form-content" style="margin-top:16px;max-height:60vh;overflow-y:auto;padding-right:8px"></div>
-      <div style="display:flex;justify-content:flex-end;margin-top:24px">
+      <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('form-modal')">Close</button>
       </div>
     </div>

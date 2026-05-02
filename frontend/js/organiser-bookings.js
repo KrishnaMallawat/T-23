@@ -54,8 +54,8 @@ function render() {
                 ${b.status === 'pending'   ? `<button class="btn btn-primary btn-sm" onclick="confirmBooking(${b.id})">✅ Confirm</button>` : ''}
                 ${b.status === 'confirmed' ? `<button class="btn btn-ghost btn-sm" onclick="markNoShow(${b.id})">👻 No-show</button>` : ''}
                 ${['pending','confirmed'].includes(b.status) ? `<button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">✕ Cancel</button>` : ''}
-                ${b.status === 'cancelled' && b.cancellation_reason ? `<button class="btn btn-ghost btn-sm" onclick="viewReason(${b.id})">💬 View Reason</button>` : ''}
-                ${b.status === 'completed' && b.punctuality_rating ? `<button class="btn btn-secondary btn-sm" onclick="viewFeedback(${b.id})">⭐ View Feedback</button>` : ''}
+                ${b.status === 'cancelled' ? `<button class="btn btn-ghost btn-sm" onclick="viewReason(${b.id})">💬 View Reason</button>` : ''}
+                ${b.status === 'completed' && b.punctuality_rating !== null ? `<button class="btn btn-secondary btn-sm" onclick="viewFeedback(${b.id})">⭐ View Feedback</button>` : ''}
                 ${b.answers && b.answers.length > 0 ? `<button class="btn btn-ghost btn-sm" onclick="viewForm(${b.id})">📝 View Form</button>` : ''}
               </div>
             </td>
