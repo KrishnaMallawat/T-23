@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CuratedSlot - Customer Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Onboarding Modal -->
+<div id="onboarding-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2 style="margin-bottom: 0.5rem;">Welcome to CuratedSlot!</h2>
+        <p style="margin-bottom: 1.5rem;">Help us personalize your experience by answering a few quick questions. We'll match you with providers who meet your exact needs.</p>
+        
+        <form id="preferences-form">
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">Strict Punctuality</div>
+                    <div class="toggle-desc">I prefer providers who never run late.</div>
+                </div>
+                <input type="checkbox" id="pref-punc">
+            </div>
+            
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">High Quality</div>
+                    <div class="toggle-desc">I want only top-rated providers.</div>
+                </div>
+                <input type="checkbox" id="pref-qual">
+            </div>
+            
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">Quiet Environment</div>
+                    <div class="toggle-desc">I need a calm and quiet space.</div>
+                </div>
+                <input type="checkbox" id="pref-quiet">
+            </div>
+            
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">On-site Parking</div>
+                    <div class="toggle-desc">I need guaranteed parking availability.</div>
+                </div>
+                <input type="checkbox" id="pref-park">
+            </div>
+            
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">Wheelchair Accessible</div>
+                    <div class="toggle-desc">I require ramp or elevator access.</div>
+                </div>
+                <input type="checkbox" id="pref-wheel">
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 1.5rem;">Save Preferences & Explore</button>
+        </form>
+    </div>
+</div>
+
+<div class="main-wrapper">
+    <div class="top-nav">
+        <h2>Curated<span style="color: var(--accent-color)">Slot</span></h2>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span class="text-secondary">Welcome, <strong id="user-name" style="color: var(--text-primary)"></strong></span>
+            <button onclick="logout()" class="btn btn-outline btn-small">Sign Out</button>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- Providers Section -->
+        <div class="card" style="align-self: start;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>Book an Appointment</h3>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer;">
+                    <input type="checkbox" id="filter-match" onchange="loadProviders()"> 
+                    <span style="font-weight: 500; color: var(--accent-color);">Match My Preferences</span>
+                </label>
+            </div>
+            
+            <div id="providers-list">
+                <p class="text-secondary">Loading providers...</p>
+            </div>
+        </div>
+
+        <!-- Bookings & Flow Section -->
+        <div>
+            <!-- Booking Flow -->
+            <div id="booking-flow" class="card hidden">
+                <h3>Select a Time Slot</h3>
+                <div style="background: var(--bg-color); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem;">
+                    <p style="margin-bottom: 0.25rem;"><strong>Provider:</strong> <span id="selected-provider-name"></span></p>
+                    <p style="margin-bottom: 0;"><strong>Service:</strong> <span id="selected-service-name"></span></p>
+                </div>
+                
+                <input type="date" id="slot-date" onchange="loadSlots()">
+                
+                <div id="slots-container" class="slot-grid" style="margin-top:1rem; margin-bottom: 1.5rem;">
+                    <p class="text-secondary">Select a date to view available slots.</p>
+                </div>
+                
+                <div id="confirm-booking-section" class="hidden" style="border-top:1px solid var(--border-color); padding-top: 1.5rem;">
+                    <h4>Confirm Booking</h4>
+                    <p>Selected Slot: <strong id="selected-slot-time" style="color: var(--accent-color)"></strong></p>
+                    
+                    <div id="booking-questions" style="margin-bottom: 1rem;"></div>
+                    
+                    <button onclick="confirmBooking()" class="btn btn-primary btn-block">Book Now</button>
+                    <div id="booking-msg" class="hidden alert" style="margin-top: 1rem;"></div>
+                </div>
+            </div>
+
+            <!-- My Bookings -->
+            <div class="card">
+                <h3>My Bookings</h3>
+                <div id="my-bookings" style="margin-top: 1rem;">
+                    <p class="text-secondary">Loading your bookings...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    const user = getUser();
+    if (!user || user.role !== 'customer') {
+        window.location.href = "index.html";
+    }
+
+    document.getElementById('user-name').innerText = user.full_name;
+
+    let selectedProviderId = null;
+    let selectedServiceId = null;
+    let selectedSlotId = null;
+    let currentQuestions = [];
+
+    async function checkPreferences() {
+        try {
+            const prefs = await apiCall('/users/me/preferences');
+            const hasSetPrefs = prefs.cares_punctuality || prefs.cares_quality || 
+                                prefs.cares_quiet_env || prefs.cares_parking || prefs.cares_accessibility;
+            
+            if (!hasSetPrefs) {
+                document.getElementById('onboarding-modal').classList.remove('hidden');
+            }
+        } catch(err) {
+            console.error(err);
+        }
+    }
+
+    document.getElementById('preferences-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await apiCall('/users/me/preferences', 'PUT', {
+                cares_punctuality: document.getElementById('pref-punc').checked,
+                cares_quality: document.getElementById('pref-qual').checked,
+                cares_quiet_env: document.getElementById('pref-quiet').checked,
+                cares_parking: document.getElementById('pref-park').checked,
+                cares_accessibility: document.getElementById('pref-wheel').checked
+            });
+            document.getElementById('onboarding-modal').classList.add('hidden');
+            document.getElementById('filter-match').checked = true;
+            loadProviders();
+        } catch(err) {
+            alert(err.message);
+        }
+    });
+
+    async function loadProviders() {
+        const match = document.getElementById('filter-match').checked;
+        try {
+            const providers = await apiCall(`/providers?cares_match=${match}`);
+            const list = document.getElementById('providers-list');
+            list.innerHTML = "";
+
+            if (providers.length === 0) {
+                list.innerHTML = `<p class="text-secondary">No providers match your criteria right now.</p>`;
+                return;
+            }
+
+            providers.forEach(p => {
+                const div = document.createElement('div');
+                div.style.marginBottom = "1.5rem";
+                div.style.paddingBottom = "1.5rem";
+                div.style.borderBottom = "1px solid var(--border-color)";
+                
+                let stats = [];
+                if (p.total_reviews > 0) {
+                    stats.push(`⭐ ${p.quality_score} Quality`);
+                    stats.push(`⏱️ ${p.punctuality_score} Punctuality`);
+                } else {
+                    stats.push("No reviews yet");
+                }
+                
+                let badges = [];
+                if (p.has_parking) badges.push(`<span class="badge" style="background:#E2E8F0; color:#475569; margin-right:5px;">🅿️ Parking</span>`);
+                if (p.is_wheelchair_accessible) badges.push(`<span class="badge" style="background:#E2E8F0; color:#475569; margin-right:5px;">♿ Accessible</span>`);
+
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div>
+                            <h4 style="margin-bottom:0.25rem;">${p.full_name}</h4>
+                            <p style="font-size:0.85rem; margin-bottom:0.5rem;">${p.bio || 'Professional Service Provider'}</p>
+                            <p style="font-size:0.85rem; font-weight:500; margin-bottom:0.5rem;">${stats.join(' &nbsp;•&nbsp; ')}</p>
+                            <div style="margin-bottom: 0.75rem;">${badges.join('')}</div>
+                        </div>
+                        <button class="btn btn-outline btn-small" onclick="viewProvider(${p.id})">Services</button>
+                    </div>
+                    <div id="services-${p.id}" class="hidden" style="margin-top:1rem; padding:1rem; background:var(--bg-color); border-radius:var(--radius-sm);"></div>
+                `;
+                list.appendChild(div);
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function viewProvider(id) {
+        try {
+            const provider = await apiCall(`/providers/${id}`);
+            const container = document.getElementById(`services-${id}`);
+            container.innerHTML = "";
+            container.classList.toggle('hidden');
+
+            if (provider.services.length === 0) {
+                container.innerHTML = "<p class='text-secondary' style='margin:0'>No active services.</p>";
+                return;
+            }
+
+            provider.services.forEach(s => {
+                const sDiv = document.createElement('div');
+                sDiv.style.display = "flex";
+                sDiv.style.justifyContent = "space-between";
+                sDiv.style.alignItems = "center";
+                sDiv.style.marginBottom = "0.5rem";
+                
+                const priceText = s.requires_payment ? `₹${s.payment_amount}` : 'Free';
+                
+                sDiv.innerHTML = `
+                    <div>
+                        <strong style="display:block; font-size:0.95rem;">${s.title}</strong>
+                        <span class="text-secondary" style="font-size:0.85rem;">${s.duration_mins} mins • ${priceText}</span>
+                    </div>
+                    <button class="btn btn-primary btn-small" onclick="startBooking(${provider.id}, '${provider.full_name.replace(/'/g, "\\'")}', ${s.id}, '${s.title.replace(/'/g, "\\'")}')">Book</button>
+                `;
+                container.appendChild(sDiv);
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function startBooking(providerId, providerName, serviceId, serviceName) {
+        selectedProviderId = providerId;
+        selectedServiceId = serviceId;
+        document.getElementById('selected-provider-name').innerText = providerName;
+        document.getElementById('selected-service-name').innerText = serviceName;
+        document.getElementById('booking-flow').classList.remove('hidden');
+        document.getElementById('slots-container').innerHTML = "<p class='text-secondary'>Select a date to view slots.</p>";
+        document.getElementById('confirm-booking-section').classList.add('hidden');
+        document.getElementById('booking-msg').classList.add('hidden');
+        
+        // Fetch questions for this service
+        try {
+            currentQuestions = await apiCall(`/appointments/${serviceId}/questions`);
+        } catch(e) {
+            currentQuestions = [];
+        }
+    }
+
+    async function loadSlots() {
+        const dateStr = document.getElementById('slot-date').value;
+        if (!dateStr || !selectedProviderId || !selectedServiceId) return;
+
+        try {
+            const slots = await apiCall(`/slots?organiser_id=${selectedProviderId}&date=${dateStr}&appointment_type_id=${selectedServiceId}`);
+            const container = document.getElementById('slots-container');
+            container.innerHTML = "";
+
+            if (slots.length === 0) {
+                container.innerHTML = "<p class='text-secondary'>No slots available.</p>";
+                return;
+            }
+
+            slots.forEach(s => {
+                const btn = document.createElement('button');
+                btn.className = 'slot-btn';
+                const timeStr = new Date(s.slot_start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                btn.innerText = timeStr;
+                btn.onclick = () => selectSlot(s.id, timeStr, btn);
+                container.appendChild(btn);
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    function selectSlot(slotId, timeStr, btnElement) {
+        selectedSlotId = slotId;
+        
+        // Update UI selection
+        document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+        btnElement.classList.add('selected');
+        
+        document.getElementById('selected-slot-time').innerText = timeStr;
+        document.getElementById('confirm-booking-section').classList.remove('hidden');
+        
+        // Render questions
+        const qContainer = document.getElementById('booking-questions');
+        qContainer.innerHTML = "";
+        if (currentQuestions.length > 0) {
+            qContainer.innerHTML = "<h5 style='margin-bottom:0.5rem;'>Additional Information</h5>";
+            currentQuestions.forEach(q => {
+                qContainer.innerHTML += `
+                    <label style="font-size:0.9rem;">${q.question_text} ${q.is_required ? '*' : ''}</label>
+                    <input type="text" class="booking-answer" data-qid="${q.id}" ${q.is_required ? 'required' : ''} style="margin-bottom:1rem;">
+                `;
+            });
+        }
+    }
+
+    async function confirmBooking() {
+        // Collect answers
+        const answers = [];
+        let missingRequired = false;
+        
+        document.querySelectorAll('.booking-answer').forEach(input => {
+            if (input.required && !input.value.trim()) {
+                missingRequired = true;
+            }
+            if (input.value.trim()) {
+                answers.push({
+                    question_id: parseInt(input.getAttribute('data-qid')),
+                    answer_text: input.value.trim()
+                });
+            }
+        });
+        
+        if (missingRequired) {
+            const msgEl = document.getElementById('booking-msg');
+            msgEl.className = 'alert alert-error';
+            msgEl.innerText = "Please answer all required questions.";
+            msgEl.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const data = await apiCall('/bookings', 'POST', {
+                slot_id: selectedSlotId,
+                answers: answers
+            });
+            const msgEl = document.getElementById('booking-msg');
+            msgEl.className = 'alert alert-success';
+            msgEl.innerText = data.message;
+            msgEl.classList.remove('hidden');
+            
+            // Cleanup UI
+            document.getElementById('booking-questions').innerHTML = "";
+            document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById('confirm-booking-section').classList.add('hidden');
+            
+            loadMyBookings();
+            loadSlots(); // Refresh slots
+        } catch (err) {
+            const msgEl = document.getElementById('booking-msg');
+            msgEl.className = 'alert alert-error';
+            msgEl.innerText = err.message;
+            msgEl.classList.remove('hidden');
+        }
+    }
+
+    async function loadMyBookings() {
+        try {
+            const bookings = await apiCall('/bookings/mine');
+            const list = document.getElementById('my-bookings');
+            list.innerHTML = "";
+
+            if (bookings.length === 0) {
+                list.innerHTML = "<p class='text-secondary'>You have no bookings yet.</p>";
+                return;
+            }
+
+            bookings.forEach(b => {
+                const div = document.createElement('div');
+                div.style.marginBottom = "1rem";
+                div.style.paddingBottom = "1rem";
+                div.style.borderBottom = "1px solid var(--border-color)";
+                
+                let badgeClass = "badge-pending";
+                if (b.status === "confirmed") badgeClass = "badge-confirmed";
+                if (b.status === "completed") badgeClass = "badge-completed";
+                if (b.status === "cancelled") badgeClass = "badge-cancelled";
+                
+                const time = new Date(b.slot_start).toLocaleString([], {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div>
+                            <strong style="display:block;">${b.service_title}</strong>
+                            <p style="font-size:0.85rem; margin-bottom:0.25rem;">with ${b.organiser_name}</p>
+                            <p style="font-size:0.85rem; color:var(--text-primary); margin-bottom:0.5rem;">📅 ${time}</p>
+                            <span class="badge ${badgeClass}">${b.status}</span>
+                        </div>
+                        ${(b.status === 'confirmed' || b.status === 'pending') ? 
+                          `<button class="btn btn-outline btn-small" onclick="cancelBooking(${b.id})" style="border-color:#FCA5A5; color:var(--error);">Cancel</button>` : ''}
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function cancelBooking(id) {
+        if (!confirm("Are you sure you want to cancel this booking?")) return;
+        try {
+            await apiCall(`/bookings/${id}/cancel`, 'PATCH', { reason: "Customer cancelled via Dashboard" });
+            loadMyBookings();
+            loadSlots(); // refresh if currently viewing same slot date
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    // Init
+    checkPreferences();
+    loadProviders();
+    loadMyBookings();
+</script>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CuratedSlot - Organiser Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="main-wrapper">
+    <div class="top-nav">
+        <h2>Curated<span style="color: var(--accent-color)">Slot</span> <span style="font-size:1rem; font-weight:400; color:var(--text-secondary)">| Organiser Panel</span></h2>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span class="text-secondary">Hello, <strong id="user-name" style="color: var(--text-primary)"></strong></span>
+            <button onclick="logout()" class="btn btn-outline btn-small">Sign Out</button>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- Left Column: Settings & Setup -->
+        <div>
+            <!-- Working Hours -->
+            <div class="card">
+                <h3>1. Setup Working Hours</h3>
+                <p class="text-secondary" style="font-size: 0.85rem;">Define when you are available for automated slot generation.</p>
+                <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                    <select id="wh-day" style="flex:1; margin:0;">
+                        <option value="0">Monday</option>
+                        <option value="1">Tuesday</option>
+                        <option value="2">Wednesday</option>
+                        <option value="3">Thursday</option>
+                        <option value="4">Friday</option>
+                        <option value="5">Saturday</option>
+                        <option value="6">Sunday</option>
+                    </select>
+                    <input type="time" id="wh-start" value="09:00" style="flex:1; margin:0;">
+                    <input type="time" id="wh-end" value="17:00" style="flex:1; margin:0;">
+                </div>
+                <button onclick="saveWorkingHours()" class="btn btn-primary btn-small">Save Hours</button>
+                <div id="wh-msg" class="hidden alert" style="margin-top:0.5rem;"></div>
+            </div>
+
+            <!-- Create Appointment Type -->
+            <div class="card">
+                <h3>2. Create New Service</h3>
+                <input type="text" id="apt-title" placeholder="Service Title (e.g., General Checkup)" required>
+                <textarea id="apt-desc" placeholder="Brief description of the service..."></textarea>
+                
+                <div style="display:flex; gap:1rem;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.85rem; font-weight:500;">Duration (mins)</label>
+                        <input type="number" id="apt-duration" value="30">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.85rem; font-weight:500;">Price (₹)</label>
+                        <input type="number" id="apt-price" value="0">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.85rem; font-weight:500;">Max Capacity</label>
+                        <input type="number" id="apt-capacity" value="1">
+                    </div>
+                </div>
+                
+                <button onclick="createAppointment()" class="btn btn-primary btn-block">Create Service</button>
+                <div id="apt-msg" class="hidden alert" style="margin-top:0.5rem;"></div>
+                
+                <h4 style="margin-top:1.5rem; border-top:1px solid var(--border-color); padding-top:1rem;">My Active Services</h4>
+                <div id="my-services">
+                    <p class="text-secondary">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Generate Slots -->
+            <div class="card">
+                <h3>3. Generate Time Slots</h3>
+                <p class="text-secondary" style="font-size: 0.85rem;">Automatically create bookable slots based on your working hours.</p>
+                
+                <select id="gen-service"><option>Loading services...</option></select>
+                
+                <div style="display:flex; gap:1rem;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.85rem; font-weight:500;">Start Date</label>
+                        <input type="date" id="gen-start">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.85rem; font-weight:500;">End Date</label>
+                        <input type="date" id="gen-end">
+                    </div>
+                </div>
+                
+                <button onclick="generateSlots()" class="btn btn-primary btn-block">Generate Slots</button>
+                <div id="gen-msg" class="hidden alert" style="margin-top:0.5rem;"></div>
+            </div>
+        </div>
+
+        <!-- Right Column: Bookings -->
+        <div>
+            <div class="card" style="min-height: 500px;">
+                <h3>Upcoming Bookings</h3>
+                <div id="my-bookings" style="margin-top:1rem;">
+                    <p class="text-secondary">Loading bookings...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    const user = getUser();
+    if (!user || user.role !== 'organiser') {
+        window.location.href = "index.html";
+    }
+
+    document.getElementById('user-name').innerText = user.full_name;
+
+    async function saveWorkingHours() {
+        try {
+            await apiCall('/organiser/working-hours', 'POST', {
+                day_of_week: document.getElementById('wh-day').value,
+                start_time: document.getElementById('wh-start').value,
+                end_time: document.getElementById('wh-end').value,
+                is_active: true
+            });
+            showMsg('wh-msg', "Working hours saved successfully.");
+        } catch(err) {
+            showMsg('wh-msg', err.message, true);
+        }
+    }
+
+    async function createAppointment() {
+        try {
+            await apiCall('/appointments', 'POST', {
+                title: document.getElementById('apt-title').value,
+                description: document.getElementById('apt-desc').value,
+                duration_mins: document.getElementById('apt-duration').value,
+                requires_payment: document.getElementById('apt-price').value > 0,
+                payment_amount: document.getElementById('apt-price').value,
+                max_capacity: document.getElementById('apt-capacity').value
+            });
+            showMsg('apt-msg', "Service created successfully!");
+            document.getElementById('apt-title').value = "";
+            document.getElementById('apt-desc').value = "";
+            loadServices();
+        } catch(err) {
+            showMsg('apt-msg', err.message, true);
+        }
+    }
+
+    function showMsg(id, text, isError=false) {
+        const el = document.getElementById(id);
+        el.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
+        el.innerText = text;
+        setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    async function loadServices() {
+        try {
+            const services = await apiCall('/appointments');
+            const list = document.getElementById('my-services');
+            const select = document.getElementById('gen-service');
+            list.innerHTML = "";
+            select.innerHTML = "";
+
+            if (services.length === 0) {
+                list.innerHTML = "<p class='text-secondary' style='font-size:0.9rem;'>No services created yet.</p>";
+                return;
+            }
+
+            services.forEach(s => {
+                const div = document.createElement('div');
+                div.style.marginBottom = "1rem";
+                div.style.paddingBottom = "1rem";
+                div.style.borderBottom = "1px solid var(--border-color)";
+                
+                const status = s.is_published ? `<span class="badge badge-completed">Published</span>` : `<span class="badge badge-pending">Draft</span>`;
+                const link = `http://127.0.0.1:5500/book.html?token=${s.share_token}`;
+                
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:0.5rem;">
+                        <div>
+                            <strong style="display:block;">${s.title}</strong>
+                            <p style="font-size:0.85rem; margin-bottom:0.25rem;">${s.duration_mins} mins • ₹${s.payment_amount} • Cap: ${s.max_capacity}</p>
+                            ${status}
+                        </div>
+                        <button class="btn btn-outline btn-small" onclick="togglePublish(${s.id}, ${s.is_published})">
+                            ${s.is_published ? 'Unpublish' : 'Publish'}
+                        </button>
+                    </div>
+                    <div style="background:var(--bg-color); padding:0.5rem; border-radius:4px; font-size:0.75rem; display:flex; align-items:center; gap:0.5rem;">
+                        <span style="color:var(--text-secondary)">Share Link:</span>
+                        <input type="text" value="${link}" readonly style="padding:0.2rem; margin:0; flex:1; font-size:0.75rem; border:none; background:transparent;">
+                    </div>
+                `;
+                list.appendChild(div);
+
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.innerText = s.title;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function togglePublish(id, currentlyPublished) {
+        try {
+            const action = currentlyPublished ? 'unpublish' : 'publish';
+            await apiCall(`/appointments/${id}/${action}`, 'PATCH');
+            loadServices();
+        } catch(err) {
+            alert(err.message);
+        }
+    }
+
+    async function generateSlots() {
+        try {
+            const data = await apiCall('/slots/generate', 'POST', {
+                appointment_type_id: document.getElementById('gen-service').value,
+                start_date: document.getElementById('gen-start').value,
+                end_date: document.getElementById('gen-end').value
+            });
+            showMsg('gen-msg', data.message);
+        } catch(err) {
+            showMsg('gen-msg', err.message, true);
+        }
+    }
+
+    async function loadBookings() {
+        try {
+            const bookings = await apiCall('/organiser/bookings');
+            const list = document.getElementById('my-bookings');
+            list.innerHTML = "";
+
+            if (bookings.length === 0) {
+                list.innerHTML = "<p class='text-secondary'>No bookings yet.</p>";
+                return;
+            }
+
+            bookings.forEach(b => {
+                const div = document.createElement('div');
+                div.style.marginBottom = "1rem";
+                div.style.paddingBottom = "1rem";
+                div.style.borderBottom = "1px solid var(--border-color)";
+                
+                let badgeClass = "badge-pending";
+                if (b.status === "confirmed") badgeClass = "badge-confirmed";
+                if (b.status === "completed") badgeClass = "badge-completed";
+                if (b.status === "cancelled") badgeClass = "badge-cancelled";
+                
+                const time = new Date(b.slot_start).toLocaleString([], {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                
+                // Format answers if any
+                let answersHtml = "";
+                if (b.answers && b.answers.length > 0) {
+                    answersHtml = "<div style='margin-top:0.5rem; background:var(--bg-color); padding:0.5rem; border-radius:4px; font-size:0.8rem;'>";
+                    b.answers.forEach(a => {
+                        answersHtml += `<strong>Q:</strong> ${a.question_text}<br><strong>A:</strong> <span style='color:var(--accent-color)'>${a.answer_text}</span><br>`;
+                    });
+                    answersHtml += "</div>";
+                }
+
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div style="flex:1; padding-right:1rem;">
+                            <strong style="display:block;">${b.service_title}</strong>
+                            <p style="font-size:0.85rem; margin-bottom:0.25rem;">${b.customer_name} (<a href="mailto:${b.customer_email}" class="text-link">${b.customer_email}</a>)</p>
+                            <p style="font-size:0.85rem; color:var(--text-primary); margin-bottom:0.5rem;">📅 ${time}</p>
+                            <span class="badge ${badgeClass}">${b.status}</span>
+                            ${answersHtml}
+                        </div>
+                        ${b.status === 'pending' ? 
+                          `<button class="btn btn-primary btn-small" onclick="confirmBooking(${b.id})">Confirm</button>` : ''}
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        } catch(err) {
+            console.error(err);
+        }
+    }
+
+    async function confirmBooking(id) {
+        try {
+            await apiCall(`/bookings/${id}/confirm`, 'PATCH');
+            loadBookings();
+        } catch(err) {
+            alert(err.message);
+        }
+    }
+
+    // Init
+    loadServices();
+    loadBookings();
+</script>
+</body>
+</html>

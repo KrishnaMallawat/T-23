@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CuratedSlot - Login</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-wrapper">
+
+<div class="card auth-card" id="login-container">
+    <h2 style="text-align: center; margin-bottom: 1.5rem;">Welcome Back</h2>
+    <div id="login-msg" class="hidden alert"></div>
+    <form id="login-form">
+        <label>Email Address</label>
+        <input type="email" id="login-email" placeholder="name@example.com" required>
+        
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" required>
+        
+        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+    </form>
+    <p style="text-align: center; margin-top: 1.5rem;">
+        <span class="text-secondary">New to CuratedSlot?</span> 
+        <a class="text-link" onclick="showSection('signup-container')">Create an account</a>
+    </p>
+</div>
+
+<div class="card auth-card hidden" id="signup-container">
+    <h2 style="text-align: center; margin-bottom: 1.5rem;">Create Account</h2>
+    <div id="signup-msg" class="hidden alert"></div>
+    <form id="signup-form">
+        <label>Full Name</label>
+        <input type="text" id="signup-name" placeholder="John Doe" required>
+        
+        <label>Email Address</label>
+        <input type="email" id="signup-email" placeholder="name@example.com" required>
+        
+        <label>Password</label>
+        <input type="password" id="signup-password" placeholder="Min 8 characters" required>
+        
+        <label>I want to...</label>
+        <select id="signup-role">
+            <option value="customer">Book Appointments (Customer)</option>
+            <option value="organiser">Offer Services (Provider)</option>
+        </select>
+        
+        <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+    </form>
+    <p style="text-align: center; margin-top: 1.5rem;">
+        <span class="text-secondary">Already have an account?</span> 
+        <a class="text-link" onclick="showSection('login-container')">Sign In</a>
+    </p>
+</div>
+
+<div class="card auth-card hidden" id="otp-container">
+    <h2 style="text-align: center; margin-bottom: 0.5rem;">Check Your Email</h2>
+    <p style="text-align: center; margin-bottom: 1.5rem;">We've sent a 6-digit verification code to your email.</p>
+    
+    <div id="otp-msg" class="hidden alert"></div>
+    
+    <form id="otp-form">
+        <input type="hidden" id="otp-email">
+        <input type="text" id="otp-code" placeholder="Enter 6-digit code" required style="text-align: center; font-size: 1.2rem; letter-spacing: 2px;">
+        <button type="submit" class="btn btn-primary btn-block">Verify Email</button>
+    </form>
+    
+    <div style="text-align: center; margin-top: 1rem;">
+        <button onclick="resendOtp()" class="btn btn-outline btn-small">Resend Code</button>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    const user = getUser();
+    if (user) {
+        redirectToDashboard(user.role);
+    }
+
+    function showSection(id) {
+        document.querySelectorAll('.auth-card').forEach(c => c.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+        document.querySelectorAll('.alert').forEach(e => e.classList.add('hidden'));
+    }
+
+    function showMsg(containerId, msg, isError = false) {
+        const el = document.getElementById(containerId);
+        el.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
+        el.innerText = msg;
+        el.classList.remove('hidden');
+    }
+
+    function redirectToDashboard(role) {
+        if (role === 'admin') window.location.href = 'admin.html';
+        else if (role === 'organiser') window.location.href = 'organiser.html';
+        else window.location.href = 'customer.html';
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            const data = await apiCall('/auth/login', 'POST', {
+                email: document.getElementById('login-email').value,
+                password: document.getElementById('login-password').value
+            });
+            setToken(data.token);
+            setUser(data.user);
+            redirectToDashboard(data.user.role);
+        } catch (err) {
+            showMsg('login-msg', err.message, true);
+        }
+    });
+
+    document.getElementById('signup-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('signup-email').value;
+        try {
+            const data = await apiCall('/auth/signup', 'POST', {
+                full_name: document.getElementById('signup-name').value,
+                email: email,
+                password: document.getElementById('signup-password').value,
+                role: document.getElementById('signup-role').value
+            });
+            document.getElementById('otp-email').value = email;
+            showSection('otp-container');
+            showMsg('otp-msg', data.message);
+        } catch (err) {
+            showMsg('signup-msg', err.message, true);
+        }
+    });
+
+    document.getElementById('otp-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            const data = await apiCall('/auth/verify-otp', 'POST', {
+                email: document.getElementById('otp-email').value,
+                otp: document.getElementById('otp-code').value
+            });
+            setToken(data.token);
+            setUser(data.user);
+            redirectToDashboard(data.user.role);
+        } catch (err) {
+            showMsg('otp-msg', err.message, true);
+        }
+    });
+
+    async function resendOtp() {
+        try {
+            const data = await apiCall('/auth/resend-otp', 'POST', {
+                email: document.getElementById('otp-email').value
+            });
+            showMsg('otp-msg', data.message);
+        } catch (err) {
+            showMsg('otp-msg', err.message, true);
+        }
+    }
+</script>
+</body>
+</html>
