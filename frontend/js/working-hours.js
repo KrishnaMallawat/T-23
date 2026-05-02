@@ -120,4 +120,40 @@ async function generateSlots() {
   }
 }
 
+async function loadMySlots() {
+  const date = document.getElementById('view-slots-date').value;
+  if (!date) return;
+  const user = getUser();
+  if (!user) return;
+  
+  const container = document.getElementById('my-slots-container');
+  container.innerHTML = '<div class="spinner"></div>';
+  
+  try {
+    const slots = await api('/api/slots', { params: { organiser_id: user.id, date: date } });
+    if (!slots.length) {
+      container.innerHTML = '<p class="text-muted">No slots available on this date.</p>';
+      return;
+    }
+    container.innerHTML = `<div class="slot-grid">${slots.map(s => `
+      <div class="slot-btn" style="display:flex;flex-direction:column;gap:4px" onclick="deleteSlot(${s.id})" title="Click to delete this slot">
+        <span style="font-size:14px">${fmtTime(s.slot_start)}</span>
+        <span style="font-size:11px;color:var(--gray-600)">${s.service_title}</span>
+      </div>`).join('')}</div>`;
+  } catch(err) {
+    container.innerHTML = `<p style="color:var(--danger)">${err.message}</p>`;
+  }
+}
+
+async function deleteSlot(id) {
+  if (!confirm('Are you sure you want to delete this available slot?')) return;
+  try {
+    await api('/api/slots/' + id, { method: 'DELETE' });
+    toast('Slot deleted', 'success');
+    loadMySlots(); // refresh the list
+  } catch(err) {
+    toast(err.message, 'error');
+  }
+}
+
 init();

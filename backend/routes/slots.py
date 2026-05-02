@@ -95,8 +95,14 @@ def generate_slots():
         dow = current.weekday()  # 0=Mon … 6=Sun
         if dow in wh_map:
             start_t, end_t = wh_map[dow]
+            
+            # mysql.connector returns TIME columns as timedelta
+            if isinstance(start_t, timedelta):
+                start_t = (datetime.min + start_t).time()
+            if isinstance(end_t, timedelta):
+                end_t = (datetime.min + end_t).time()
 
-            # Build datetime objects in UTC (naive → assume local, treat as UTC for demo)
+            # Build datetime objects
             day_start = datetime.combine(current, start_t)
             day_end   = datetime.combine(current, end_t)
 
@@ -122,3 +128,18 @@ def generate_slots():
         current += timedelta(days=1)
 
     return success({"slots_created": slots_created, "message": f"{slots_created} slot(s) generated."})
+
+# ── DELETE /api/slots/<id> — delete a specific slot ──────────────
+@slots_bp.route("/slots/<int:slot_id>", methods=["DELETE"])
+@role_required("organiser")
+def delete_slot(slot_id):
+    slot = db.execute("SELECT id, organiser_id, booked_count FROM slots WHERE id=%s", (slot_id,), fetch="one")
+    if not slot:
+        return error("Slot not found", 404)
+    if slot["organiser_id"] != request.user_id:
+        return error("Forbidden", 403)
+    if slot["booked_count"] > 0:
+        return error("Cannot delete a slot that has active bookings")
+
+    db.execute("DELETE FROM slots WHERE id=%s", (slot_id,))
+    return success({"message": "Slot deleted successfully"})

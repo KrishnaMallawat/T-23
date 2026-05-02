@@ -92,9 +92,9 @@ def create_booking():
 def my_bookings():
     rows = db.execute(
         """
-        SELECT b.id, b.status, b.booked_at, b.cancelled_at,
-               s.slot_start, s.slot_end,
-               at.title AS service_title, at.duration_mins,
+        SELECT b.id, b.status, b.booked_at, b.cancelled_at, b.slot_id,
+               s.slot_start, s.slot_end, s.organiser_id,
+               at.id AS appt_type_id, at.title AS service_title, at.duration_mins,
                u.full_name AS organiser_name,
                (SELECT COUNT(*) FROM appointment_feedback af WHERE af.booking_id=b.id) > 0 AS has_feedback
         FROM bookings b

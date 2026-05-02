@@ -75,12 +75,12 @@ async function loadProviders() {
     renderProviders();
   } catch(err) {
     document.getElementById('providers-container').innerHTML =
-      `<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Could not load providers</h3><p>${err.message}</p></div>`;
+      '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Could not load providers</h3><p>' + err.message + '</p></div>';
   }
 }
 
 function renderProviders() {
-  let list = allProviders.filter(p => {
+  var list = allProviders.filter(function(p) {
     if (filters.parking && !p.has_parking) return false;
     if (filters.wheelchair && !p.is_wheelchair_accessible) return false;
     if (filters.noise && p.noise_level !== filters.noise) return false;
@@ -88,53 +88,56 @@ function renderProviders() {
   });
 
   // Compute match and sort
-  list = list.map(p => ({ ...p, match: calcMatch(p, weights) }))
-             .sort((a, b) => (b.match || 0) - (a.match || 0));
+  list = list.map(function(p) { return Object.assign({}, p, { match: calcMatch(p, weights) }); })
+             .sort(function(a, b) { return (b.match || 0) - (a.match || 0); });
 
   document.getElementById('results-count').textContent = list.length + ' provider' + (list.length !== 1 ? 's' : '');
 
   if (!list.length) {
     document.getElementById('providers-container').innerHTML =
-      `<div class="empty-state"><div class="empty-icon">🔍</div><h3>No providers match your filters</h3><p>Try adjusting your filters.</p></div>`;
+      '<div class="empty-state"><div class="empty-icon">🔍</div><h3>No providers match your filters</h3><p>Try adjusting your filters.</p></div>';
     return;
   }
 
   document.getElementById('providers-container').innerHTML =
-    `<div class="provider-grid">${list.map(providerCard).join('')}</div>`;
+    '<div class="provider-grid">' + list.map(providerCard).join('') + '</div>';
 }
 
 function providerCard(p) {
-  const initial = (p.full_name || '?')[0].toUpperCase();
-  const match = p.match;
-  const matchHtml = match !== null
-    ? `<div class="match-badge ${matchClass(match)}" style="margin-bottom:12px">🎯 ${match}% Match</div>`
+  var initial = (p.full_name || '?')[0].toUpperCase();
+  var match = p.match;
+  var matchHtml = match !== null
+    ? '<div class="match-badge ' + matchClass(match) + '" style="margin-bottom:12px">🎯 ' + match + '% Match</div>'
     : '';
-  const amenities = [
-    p.has_parking             ? '🅿️ Parking' : null,
-    p.is_wheelchair_accessible? '♿ Accessible' : null,
+  var amenities = [
+    p.has_parking              ? '🅿️ Parking' : null,
+    p.is_wheelchair_accessible ? '♿ Accessible' : null,
     p.noise_level ? (p.noise_level === 'quiet' ? '🤫 Quiet' : p.noise_level === 'loud' ? '📢 Loud' : '💬 Moderate') : null,
-  ].filter(Boolean).map(a => `<span class="amenity-chip">${a}</span>`).join('');
+  ].filter(Boolean).map(function(a) { return '<span class="amenity-chip">' + a + '</span>'; }).join('');
 
-  const pScore = p.punctuality_score  ? ((p.punctuality_score/5)*100).toFixed(0)  + '%' : '—';
-  const qScore = p.quality_score      ? ((p.quality_score/5)*100).toFixed(0)      + '%' : '—';
-  const reviews = p.total_reviews || 0;
+  var pScore = p.punctuality_score  ? ((p.punctuality_score/5)*100).toFixed(0)  + '%' : '—';
+  var qScore = p.quality_score      ? ((p.quality_score/5)*100).toFixed(0)      + '%' : '—';
+  var reviews = p.total_reviews || 0;
 
-  return `
-  <div class="provider-card" onclick="window.location.href='/provider.html?id=${p.id}'">
-    <div class="provider-avatar">${initial}</div>
-    ${matchHtml}
-    <div class="provider-name">${p.full_name}</div>
-    <div class="provider-bio">${p.bio || 'No bio provided.'}</div>
-    <div class="provider-amenities">${amenities}</div>
-    <div style="display:flex;gap:16px;font-size:13px;color:var(--gray-600)">
-      <span>⏱️ Punct. <strong style="color:var(--gray-900)">${pScore}</strong></span>
-      <span>⭐ Quality <strong style="color:var(--gray-900)">${qScore}</strong></span>
-      <span>📝 <strong style="color:var(--gray-900)">${reviews}</strong> reviews</span>
-    </div>
-    <div style="margin-top:14px">
-      <button class="btn btn-primary btn-sm w-full">View &amp; Book →</button>
-    </div>
-  </div>`;
+  var href = '/provider?id=' + p.id;
+
+  return '<a href="' + href + '" style="text-decoration:none;color:inherit;display:block">' +
+    '<div class="provider-card">' +
+      '<div class="provider-avatar">' + initial + '</div>' +
+      matchHtml +
+      '<div class="provider-name">' + p.full_name + '</div>' +
+      '<div class="provider-bio">' + (p.bio || 'No bio provided.') + '</div>' +
+      '<div class="provider-amenities">' + amenities + '</div>' +
+      '<div style="display:flex;gap:16px;font-size:13px;color:var(--gray-600)">' +
+        '<span>⏱️ Punct. <strong style="color:var(--gray-900)">' + pScore + '</strong></span>' +
+        '<span>⭐ Quality <strong style="color:var(--gray-900)">' + qScore + '</strong></span>' +
+        '<span>📝 <strong style="color:var(--gray-900)">' + reviews + '</strong> reviews</span>' +
+      '</div>' +
+      '<div style="margin-top:14px">' +
+        '<span class="btn btn-primary btn-sm w-full">View &amp; Book →</span>' +
+      '</div>' +
+    '</div>' +
+  '</a>';
 }
 
 init();

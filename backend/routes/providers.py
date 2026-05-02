@@ -80,7 +80,7 @@ def get_provider(provider_id):
     services = db.execute(
         """
         SELECT id, title, description, duration_mins, max_capacity,
-               requires_payment, payment_amount
+               payment_requirement, payment_amount
         FROM appointment_types WHERE organiser_id=%s AND is_published=1 ORDER BY title
         """,
         (provider_id,), fetch="all",

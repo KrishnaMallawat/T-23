@@ -54,11 +54,13 @@ function bookingCard(b) {
     actions.push(`<button class="btn btn-danger btn-sm" onclick="openCancel(${b.id})">✕ Cancel</button>`);
   }
   if (isCompleted && !b.has_feedback) {
-    actions.push(`<a href="/feedback.html?booking_id=${b.id}" class="btn btn-secondary btn-sm">⭐ Leave Feedback</a>`);
+    actions.push(`<a href="/feedback?booking_id=${b.id}" class="btn btn-secondary btn-sm">⭐ Leave Feedback</a>`);
   }
 
-  return `
-  <div class="card" style="padding:20px">
+  var providerLink = b.organiser_id ? '/provider?id=' + b.organiser_id : '#';
+
+  return '<a href="' + providerLink + '" style="text-decoration:none;color:inherit;display:block">' +
+  `<div class="card" style="padding:20px;cursor:pointer;transition:transform 0.2s, box-shadow 0.2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.transform='none';this.style.boxShadow='var(--shadow)'">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
@@ -72,11 +74,11 @@ function bookingCard(b) {
           <span>🕐 ${fmtTime(b.slot_start)} – ${fmtTime(b.slot_end)}</span>
           <span>⏱️ ${b.duration_mins} min</span>
         </div>
-        ${b.cancelled_at ? `<p style="font-size:12px;color:var(--danger);margin-top:6px">Cancelled on ${fmtDate(b.cancelled_at)}</p>` : ''}
+        ${b.cancelled_at ? '<p style="font-size:12px;color:var(--danger);margin-top:6px">Cancelled on ' + fmtDate(b.cancelled_at) + '</p>' : ''}
       </div>
-      ${actions.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${actions.join('')}</div>` : ''}
+      ${actions.length ? '<div style="display:flex;gap:8px;flex-wrap:wrap" onclick="event.preventDefault();event.stopPropagation()">' + actions.join('') + '</div>' : ''}
     </div>
-  </div>`;
+  </div>` + '</a>';
 }
 
 function openCancel(id) {

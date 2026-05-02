@@ -12,7 +12,7 @@ def list_appointments():
     rows = db.execute(
         """
         SELECT id, title, description, duration_mins, is_published,
-               requires_payment, payment_amount, manual_confirmation,
+               payment_requirement, payment_amount, manual_confirmation,
                max_capacity, share_token, created_at
         FROM appointment_types WHERE organiser_id=%s ORDER BY created_at DESC
         """,
@@ -29,7 +29,7 @@ def create_appointment():
     description = (data.get("description") or "").strip()
     duration    = data.get("duration_mins")
     max_cap     = data.get("max_capacity", 1)
-    req_pay     = bool(data.get("requires_payment", False))
+    pay_req     = data.get("payment_requirement", "none")
     pay_amt     = float(data.get("payment_amount", 0))
     manual      = bool(data.get("manual_confirmation", False))
 
@@ -43,11 +43,11 @@ def create_appointment():
         """
         INSERT INTO appointment_types
             (organiser_id, title, description, duration_mins, max_capacity,
-             requires_payment, payment_amount, manual_confirmation, share_token)
+             payment_requirement, payment_amount, manual_confirmation, share_token)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """,
         (request.user_id, title, description, int(duration), int(max_cap),
-         req_pay, pay_amt, manual, share_token),
+         pay_req, pay_amt, manual, share_token),
         fetch="lastrowid",
     )
     appt = db.execute(
@@ -105,7 +105,7 @@ def public_preview(token):
     appt = db.execute(
         """
         SELECT at.id, at.title, at.description, at.duration_mins,
-               at.max_capacity, at.requires_payment, at.payment_amount,
+               at.max_capacity, at.payment_requirement, at.payment_amount,
                u.full_name AS organiser_name,
                pi.bio, pi.has_parking, pi.is_wheelchair_accessible, pi.noise_level
         FROM appointment_types at

@@ -2,7 +2,7 @@ if (!requireAuth(['customer','organiser','admin'])) throw new Error('auth');
 buildNav('/providers.html');
 
 const providerId = new URLSearchParams(location.search).get('id');
-if (!providerId) window.location.href = '/providers.html';
+if (!providerId) { window.location.href = '/providers'; throw new Error('no provider id'); }
 
 async function init() {
   try {
@@ -10,7 +10,7 @@ async function init() {
     render(p);
   } catch(err) {
     document.getElementById('provider-container').innerHTML =
-      `<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Provider not found</h3></div>`;
+      '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Provider error</h3><p>' + err.message + '</p></div>';
   }
 }
 
@@ -20,7 +20,7 @@ function scoreBar(label, score, max) {
   <div class="score-bar-wrap">
     <div class="score-bar-label">
       <span>${label}</span>
-      <span style="font-weight:700;color:var(--purple-700)">${score ? score.toFixed(1) : '—'} / ${max}</span>
+      <span style="font-weight:700;color:var(--purple-700)">${(score !== null && score !== undefined && score !== '') ? parseFloat(score).toFixed(1) : '—'} / ${max}</span>
     </div>
     <div class="score-bar-track">
       <div class="score-bar-fill" style="width:${pct}%"></div>
@@ -51,7 +51,7 @@ function render(p) {
             ${s.payment_amount > 0 ? `<span class="badge badge-purple">💳 ₹${s.payment_amount} — ${payLabel[s.payment_requirement]||''}</span>` : ''}
           </div>
         </div>
-        <a href="/booking.html?provider_id=${p.id}&appt_id=${s.id}" class="btn btn-primary">Book Now →</a>
+        <a href="/booking?provider_id=${p.id}&appt_id=${s.id}" class="btn btn-primary">Book Now →</a>
       </div>`).join('')
     : `<div class="empty-state" style="padding:32px"><div class="empty-icon">📭</div><p>No published services yet.</p></div>`;
 
