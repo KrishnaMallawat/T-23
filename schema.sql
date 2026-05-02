@@ -53,18 +53,29 @@ CREATE TABLE provider_info (
 );
 
 CREATE TABLE appointment_types (
-    id                  INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    organiser_id        INT NOT NULL,
-    title               VARCHAR(200) NOT NULL,
-    description         TEXT,
-    duration_mins       INT NOT NULL,
-    is_published        BOOLEAN NOT NULL DEFAULT FALSE,
-    requires_payment    BOOLEAN NOT NULL DEFAULT FALSE,
-    payment_amount      DECIMAL(10,2) DEFAULT 0,
-    manual_confirmation BOOLEAN NOT NULL DEFAULT FALSE,
-    max_capacity        INT NOT NULL DEFAULT 1,
-    share_token         VARCHAR(64) UNIQUE,
-    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id                           INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    organiser_id                 INT NOT NULL,
+    title                        VARCHAR(200) NOT NULL,
+    description                  TEXT,
+    duration_mins                INT NOT NULL,
+    is_published                 BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    -- Payment Rules
+    payment_requirement          ENUM('none', 'optional_advance', 'mandatory_advance') NOT NULL DEFAULT 'none',
+    payment_amount               DECIMAL(10,2) DEFAULT 0,
+    
+    -- Cancellation & Rescheduling Rules
+    allow_rescheduling           BOOLEAN NOT NULL DEFAULT TRUE,
+    allow_cancellation           BOOLEAN NOT NULL DEFAULT TRUE,
+    cancellation_cutoff_hours    INT NOT NULL DEFAULT 24,
+    refund_percent_before_cutoff INT NOT NULL DEFAULT 100,
+    refund_percent_after_cutoff  INT NOT NULL DEFAULT 0,
+    
+    -- Booking Rules
+    manual_confirmation          BOOLEAN NOT NULL DEFAULT FALSE,
+    max_capacity                 INT NOT NULL DEFAULT 1,
+    share_token                  VARCHAR(64) UNIQUE,
+    created_at                   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (organiser_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_apt_organiser (organiser_id)
 );
@@ -110,6 +121,7 @@ CREATE TABLE bookings (
     slot_id              INT NOT NULL,
     customer_id          INT NOT NULL,
     status               ENUM('draft','pending','confirmed','cancelled','completed','no_show') NOT NULL DEFAULT 'confirmed',
+    payment_status       ENUM('unpaid', 'partial', 'paid', 'refunded') NOT NULL DEFAULT 'unpaid',
     expires_at           DATETIME NULL,
     booked_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     cancelled_at         DATETIME,

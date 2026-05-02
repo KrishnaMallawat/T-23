@@ -2,6 +2,7 @@ import re
 import mysql.connector.errors
 from flask import Blueprint, request
 import db
+import random
 from utils.auth import hash_password, check_password, create_token
 from utils.email import send_otp_email, send_password_reset_email
 from utils.helpers import generate_otp, generate_reset_token, in_minutes, success, error
@@ -18,7 +19,8 @@ def signup():
     email     = (data.get("email") or "").strip().lower()
     password  = data.get("password") or ""
     role      = (data.get("role") or "customer").strip().lower()
-
+    user_id = (full_name.upper()[:1] + role.upper()[:1] + random.randit(0,999) for _ in range(3))
+    
     if not full_name or not email or not password:
         return error("full_name, email, and password are required")
     if not EMAIL_RE.match(email):
@@ -34,8 +36,8 @@ def signup():
 
     pw_hash = hash_password(password)
     user_id = db.execute(
-        "INSERT INTO users (full_name, email, password_hash, role) VALUES (%s, %s, %s, %s)",
-        (full_name, email, pw_hash, role),
+        "INSERT INTO users (id, full_name, email, password_hash, role) VALUES (%s, %s, %s, %s, %s)",
+        (user_id, full_name, email, pw_hash, role),
         fetch="lastrowid",
     )
     user = db.execute("SELECT id, full_name, email, role FROM users WHERE id=%s", (user_id,), fetch="one")
