@@ -89,8 +89,8 @@ This guarantees the application can be load-tested with deeply interconnected re
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/curatedslot.git
-   cd curatedslot
+   git clone https://github.com/KrishnaMallawat/T-23.git
+   cd T-23
    ```
 
 2. **Setup the Virtual Environment**
