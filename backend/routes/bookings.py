@@ -210,6 +210,29 @@ def organiser_bookings():
     return success([dict(r) for r in (rows or [])])
 
 
+@bookings_bp.route("/bookings/<int:booking_id>/complete", methods=["PATCH"])
+@role_required("organiser")
+def complete_booking(booking_id):
+    booking = db.execute(
+        """
+        SELECT b.id, b.status, s.organiser_id 
+        FROM bookings b
+        JOIN slots s ON s.id=b.slot_id
+        WHERE b.id=%s
+        """, (booking_id,), fetch="one"
+    )
+    if not booking:
+        return error("Booking not found", 404)
+    if booking["organiser_id"] != request.user_id:
+        return error("Forbidden", 403)
+    if booking["status"] != "confirmed":
+        return error(f"Cannot complete a {booking['status']} booking. It must be confirmed.")
+
+    db.execute("UPDATE bookings SET status='completed' WHERE id=%s", (booking_id,))
+    return success({"message": "Booking marked as completed"})
+
+
+
 @bookings_bp.route("/bookings/<int:booking_id>/cancel", methods=["PATCH"])
 @login_required
 def cancel_booking(booking_id):

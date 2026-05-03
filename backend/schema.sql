@@ -162,3 +162,18 @@ VALUES (
     TRUE,
     TRUE
 );
+
+-- Automated event to mark past bookings as completed
+DELIMITER //
+
+CREATE EVENT IF NOT EXISTS auto_complete_bookings
+ON SCHEDULE EVERY 15 MINUTE
+DO
+BEGIN
+    UPDATE bookings b
+    JOIN slots s ON b.slot_id = s.id
+    SET b.status = 'completed'
+    WHERE b.status = 'confirmed' AND s.slot_end < NOW();
+END //
+
+DELIMITER ;

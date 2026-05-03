@@ -162,6 +162,8 @@ export const api = {
     services: () => request<Service[]>("/appointments"),
     confirmBooking: (id: number) =>
       request<{ message: string }>(`/bookings/${id}/confirm`, { method: "PATCH" }),
+    completeBooking: (id: number) =>
+      request<{ message: string }>(`/bookings/${id}/complete`, { method: "PATCH" }),
     updateProfile: (data: { bio: string; address: string; phone: string; has_parking: boolean; is_wheelchair_accessible: boolean; noise_level: string }) =>
       request<{ message: string }>("/organiser/profile", {
         method: "PUT",

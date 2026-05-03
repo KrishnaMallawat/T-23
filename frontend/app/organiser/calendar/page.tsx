@@ -111,8 +111,19 @@ export default function OrganiserCalendarPage() {
                   Approve
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem>Mark as No-Show</DropdownMenuItem>
-              <DropdownMenuItem>Mark as Complete</DropdownMenuItem>
+              {booking.status === "confirmed" && (
+                <DropdownMenuItem onClick={async () => {
+                  try {
+                    await api.organiser.completeBooking(booking.id)
+                    toast.success("Booking marked as complete!")
+                    loadBookings()
+                  } catch (error: any) {
+                    toast.error(error.message || "Failed to complete booking")
+                  }
+                }}>
+                  Mark as Complete
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem className="text-destructive">Cancel</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
