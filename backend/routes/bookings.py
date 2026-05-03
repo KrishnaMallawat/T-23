@@ -72,6 +72,14 @@ def create_booking():
         payment_status = "pending"
         payment_id = None
 
+    # ATOMIC SLOT CAPACITY UPDATE to prevent race conditions
+    rows_affected = db.execute(
+        "UPDATE slots SET booked_count = booked_count + 1, status = IF(booked_count >= capacity, 'full', 'available') WHERE id=%s AND booked_count < capacity",
+        (slot_id,), fetch="rowcount"
+    )
+    if rows_affected == 0:
+        return error("This slot is fully booked", 409)
+
     try:
         booking_id = db.execute(
             "INSERT INTO bookings (slot_id, customer_id, status, expires_at, payment_status, payment_id) VALUES (%s,%s,%s,%s,%s,%s)",
@@ -80,15 +88,10 @@ def create_booking():
         )
     except mysql.connector.errors.IntegrityError as e:
         if e.errno == 1062:   # Duplicate entry — UNIQUE(slot_id, customer_id)
+            # Rollback slot update
+            db.execute("UPDATE slots SET booked_count = booked_count - 1, status = 'available' WHERE id=%s", (slot_id,))
             return error("You have already booked this slot", 409)
         raise
-
-    new_count  = slot["booked_count"] + 1
-    new_status = "full" if new_count >= slot["capacity"] else "available"
-    db.execute(
-        "UPDATE slots SET booked_count=%s, status=%s WHERE id=%s",
-        (new_count, new_status, slot_id),
-    )
 
     for ans in answers:
         if ans.get("question_id") and ans.get("answer_text"):
@@ -216,7 +219,7 @@ def cancel_booking(booking_id):
     booking = db.execute(
         """
         SELECT b.id, b.slot_id, b.customer_id, b.status, b.payment_status,
-               s.slot_start,
+               s.slot_start, s.organiser_id,
                at.allow_cancellation, at.cancellation_cutoff_hours,
                at.refund_percent_before_cutoff, at.refund_percent_after_cutoff
         FROM bookings b
@@ -230,6 +233,8 @@ def cancel_booking(booking_id):
     if not booking["allow_cancellation"]:
         return error("Cancellation is not allowed for this service", 403)
     if request.user_role == "customer" and booking["customer_id"] != request.user_id:
+        return error("Forbidden", 403)
+    if request.user_role == "organiser" and booking["organiser_id"] != request.user_id:
         return error("Forbidden", 403)
     if booking["status"] in ("cancelled", "completed"):
         return error(f"Cannot cancel a {booking['status']} booking")
@@ -271,7 +276,7 @@ def reschedule_booking(booking_id):
 
     booking = db.execute(
         """
-        SELECT b.id, b.slot_id, b.customer_id, b.status, at.allow_rescheduling
+        SELECT b.id, b.slot_id, b.customer_id, b.status, at.allow_rescheduling, at.id AS appointment_type_id
         FROM bookings b
         JOIN slots s ON s.id=b.slot_id
         JOIN appointment_types at ON at.id=s.appointment_type_id
@@ -288,10 +293,12 @@ def reschedule_booking(booking_id):
         return error("Only confirmed or pending bookings can be rescheduled")
 
     new_slot = db.execute(
-        "SELECT id, capacity, booked_count, status FROM slots WHERE id=%s", (new_slot_id,), fetch="one"
+        "SELECT id, capacity, booked_count, status, appointment_type_id FROM slots WHERE id=%s", (new_slot_id,), fetch="one"
     )
     if not new_slot or new_slot["status"] != "available" or new_slot["booked_count"] >= new_slot["capacity"]:
         return error("Selected slot is not available")
+    if new_slot["appointment_type_id"] != booking["appointment_type_id"]:
+        return error("You can only reschedule to a slot for the same service")
 
     old_slot_id = booking["slot_id"]
     db.execute("UPDATE bookings SET slot_id=%s WHERE id=%s", (new_slot_id, booking_id))

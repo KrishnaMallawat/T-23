@@ -111,20 +111,44 @@ def admin_bookings():
 def list_users():
     role_filter   = request.args.get("role")
     active_filter = request.args.get("is_active")
+    search        = request.args.get("search", "").strip()
+    page          = int(request.args.get("page", 1))
+    limit         = int(request.args.get("limit", 25))
+    offset        = (page - 1) * limit
 
-    query  = "SELECT id, full_name, email, role, is_active, is_verified, created_at FROM users WHERE 1=1"
+    base_query = "FROM users WHERE 1=1"
     params = []
 
-    if role_filter in ("customer", "organiser", "admin"):
-        query += " AND role=%s"
+    if role_filter and role_filter in ("customer", "organiser", "admin"):
+        base_query += " AND role=%s"
         params.append(role_filter)
-    if active_filter is not None:
-        query += " AND is_active=%s"
+    if active_filter is not None and active_filter != "":
+        base_query += " AND is_active=%s"
         params.append(1 if active_filter.lower() == "true" else 0)
+    if search:
+        base_query += " AND (full_name LIKE %s OR email LIKE %s)"
+        params.extend([f"%{search}%", f"%{search}%"])
 
-    query += " ORDER BY created_at DESC"
-    rows = db.execute(query, params or None, fetch="all")
-    return success([dict(r) for r in (rows or [])])
+    # Get total count
+    count_query = f"SELECT COUNT(*) as total {base_query}"
+    total_row = db.execute(count_query, params, fetch="one")
+    total = total_row["total"] if total_row else 0
+    total_pages = (total + limit - 1) // limit
+
+    # Get paginated data
+    data_query = f"SELECT id, full_name, email, role, is_active, is_verified, created_at {base_query} ORDER BY created_at DESC LIMIT %s OFFSET %s"
+    data_params = params + [limit, offset]
+    rows = db.execute(data_query, data_params, fetch="all")
+    
+    return success({
+        "data": [dict(r) for r in (rows or [])],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "total_pages": total_pages
+        }
+    })
 
 
 @admin_bp.route("/users/<int:user_id>/toggle-active", methods=["PATCH"])

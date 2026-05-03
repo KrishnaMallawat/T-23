@@ -49,10 +49,14 @@ def execute(query, params=None, fetch="none"):
         elif fetch == "lastrowid":
             conn.commit()
             return cursor.lastrowid
+        elif fetch == "rowcount":
+            conn.commit()
+            return cursor.rowcount
         else:
             conn.commit()
             return None
 
+        conn.commit()  # close the implicit transaction for SELECT queries
         return result
     except Exception:
         conn.rollback()

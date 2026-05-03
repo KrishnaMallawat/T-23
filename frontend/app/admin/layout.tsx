@@ -6,15 +6,19 @@ export const metadata = {
   description: "Manage users, bookings, and services",
 }
 
+import { AuthGuard } from "@/components/auth/auth-guard"
+
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <SidebarProvider>
-      <AdminSidebar />
-      <SidebarInset>{children}</SidebarInset>
-    </SidebarProvider>
+    <AuthGuard allowedRoles={["admin"]}>
+      <SidebarProvider>
+        <AdminSidebar />
+        <SidebarInset>{children}</SidebarInset>
+      </SidebarProvider>
+    </AuthGuard>
   )
 }

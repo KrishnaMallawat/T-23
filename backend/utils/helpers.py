@@ -4,8 +4,8 @@ from datetime import datetime, timezone, timedelta
 
 
 def generate_otp(length: int = 6) -> str:
-    """Generate a numeric OTP of given length."""
-    return "".join(str(random.randint(0, 9)) for _ in range(length))
+    """Generate a cryptographically secure numeric OTP of given length."""
+    return "".join(secrets.choice("0123456789") for _ in range(length))
 
 
 def generate_reset_token() -> str:

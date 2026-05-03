@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
-from config import FLASK_DEBUG
+from config import FLASK_DEBUG, FRONTEND_URL
 
 from routes.auth         import auth_bp
 from routes.appointments import appointments_bp
@@ -12,7 +12,11 @@ from routes.admin        import admin_bp
 from routes.users        import users_bp
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(
+    app,
+    resources={r"/api/*": {"origins": [FRONTEND_URL, FRONTEND_URL.replace("localhost", "127.0.0.1"), FRONTEND_URL.replace("127.0.0.1", "localhost")]}},
+    supports_credentials=True
+)
 
 # ── Register blueprints ───────────────────────────────────────────────────────
 app.register_blueprint(auth_bp)

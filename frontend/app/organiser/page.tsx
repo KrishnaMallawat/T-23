@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Users, Star, Clock } from "lucide-react"
 import { api, OrgStats, OrgBooking } from "@/lib/api"
-import { getUser } from "@/lib/api"
+import { useAuth } from "@/components/providers/auth-provider"
 
 function fmt12h(hour: number) {
   if (hour === 0) return "12 AM"
@@ -14,9 +14,10 @@ function fmt12h(hour: number) {
   return `${hour - 12} PM`
 }
 
+
 export default function OrganiserDashboard() {
   const router = useRouter()
-  const user = getUser()
+  const { user } = useAuth()
   const [stats, setStats] = useState<OrgStats | null>(null)
   const [bookings, setBookings] = useState<OrgBooking[]>([])
   const [loading, setLoading] = useState(true)

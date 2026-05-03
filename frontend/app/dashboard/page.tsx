@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Calendar, Clock, Star, ArrowRight } from "lucide-react"
 import { api, Booking, Provider } from "@/lib/api"
-import { getUser } from "@/lib/api"
+import { useAuth } from "@/components/providers/auth-provider"
 
 export default function CustomerDashboard() {
-  const user = getUser()
+  const { user } = useAuth()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
   const [loading, setLoading] = useState(true)

@@ -15,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { api, getUser, ProviderDetail } from "@/lib/api"
+import { api, ProviderDetail } from "@/lib/api"
+import { useAuth } from "@/components/providers/auth-provider"
 
 export default function OrganiserSettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -29,9 +30,9 @@ export default function OrganiserSettingsPage() {
   const [parking, setParking] = useState(false)
   const [accessible, setAccessible] = useState(false)
   const [noiseLevel, setNoiseLevel] = useState<"quiet" | "moderate" | "loud">("moderate")
+  const { user, login, token } = useAuth()
 
   useEffect(() => {
-    const user = getUser()
     if (!user) return
     api.providers.get(user.id)
       .then((p: ProviderDetail) => {
@@ -63,12 +64,8 @@ export default function OrganiserSettingsPage() {
       })
       setMsg({ text: "Settings saved successfully!", ok: true })
 
-      const local = localStorage.getItem("user")
-      if (local) {
-        const u = JSON.parse(local)
-        u.full_name = businessName
-        localStorage.setItem("user", JSON.stringify(u))
-        window.dispatchEvent(new Event("storage"))
+      if (user && token) {
+        login(token, { ...user, full_name: businessName })
       }
     } catch (err: unknown) {
       setMsg({ text: err instanceof Error ? err.message : "Failed to save settings", ok: false })

@@ -125,6 +125,8 @@ def generate_slots():
 
     if end_date < start_date:
         return error("end_date must be >= start_date")
+    if (end_date - start_date).days > 90:
+        return error("Cannot generate slots for more than 90 days at a time")
 
     # Fetch working hours for this organiser
     wh_rows = db.execute(
@@ -146,6 +148,12 @@ def generate_slots():
         dow = current.weekday()  # 0=Mon … 6=Sun
         if dow in wh_map:
             start_t, end_t = wh_map[dow]
+            
+            # PyMySQL returns TIME as timedelta
+            if isinstance(start_t, timedelta):
+                start_t = (datetime(1,1,1) + start_t).time()
+            if isinstance(end_t, timedelta):
+                end_t = (datetime(1,1,1) + end_t).time()
 
             # Build datetime objects in UTC (naive → assume local, treat as UTC for demo)
             day_start = datetime.combine(current, start_t)

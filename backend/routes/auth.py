@@ -235,3 +235,30 @@ def reset_password():
     db.execute("UPDATE password_reset_tokens SET is_used=1 WHERE id=%s", (row["id"],))
 
     return success({"message": "Password updated successfully. You can now log in."})
+
+
+# ── POST /api/auth/change-password ───────────────────────────────────────────
+from utils.auth import login_required
+
+@auth_bp.route("/change-password", methods=["POST"])
+@login_required
+def change_password():
+    data         = request.get_json(silent=True) or {}
+    current_pw   = data.get("current_password") or ""
+    new_pw       = data.get("new_password") or ""
+
+    if not current_pw or not new_pw:
+        return error("current_password and new_password are required")
+    if len(new_pw) < 8:
+        return error("New password must be at least 8 characters")
+
+    user = db.execute("SELECT id, password_hash FROM users WHERE id=%s", (request.user_id,), fetch="one")
+    if not user:
+        return error("User not found", 404)
+
+    if not check_password(current_pw, user["password_hash"]):
+        return error("Current password is incorrect", 401)
+
+    db.execute("UPDATE users SET password_hash=%s WHERE id=%s", (hash_password(new_pw), request.user_id))
+    return success({"message": "Password changed successfully"})
+

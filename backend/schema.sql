@@ -1,28 +1,3 @@
--- ============================================================
--- SlotSync — MySQL Schema
--- ============================================================
-
-SET FOREIGN_KEY_CHECKS = 0;
-
-DROP TABLE IF EXISTS provider_behavioral_scores;
-DROP TABLE IF EXISTS appointment_feedback;
-DROP TABLE IF EXISTS booking_answers;
-DROP TABLE IF EXISTS bookings;
-DROP TABLE IF EXISTS slots;
-DROP TABLE IF EXISTS appointment_questions;
-DROP TABLE IF EXISTS working_hours;
-DROP TABLE IF EXISTS appointment_types;
-DROP TABLE IF EXISTS provider_info;
-DROP TABLE IF EXISTS user_preferences;
-DROP TABLE IF EXISTS password_reset_tokens;
-DROP TABLE IF EXISTS otp_verifications;
-DROP TABLE IF EXISTS users;
-
-SET FOREIGN_KEY_CHECKS = 1;
-
--- ============================================================
--- 1. USERS
--- ============================================================
 CREATE TABLE users (
     id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     full_name     VARCHAR(150) NOT NULL,
@@ -33,10 +8,6 @@ CREATE TABLE users (
     is_verified   BOOLEAN NOT NULL DEFAULT FALSE,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
--- ============================================================
--- 2. OTP VERIFICATIONS
--- ============================================================
 CREATE TABLE otp_verifications (
     id          INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id     INT NOT NULL,
@@ -47,10 +18,6 @@ CREATE TABLE otp_verifications (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_otp_user (user_id)
 );
-
--- ============================================================
--- 3. PASSWORD RESET TOKENS
--- ============================================================
 CREATE TABLE password_reset_tokens (
     id          INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id     INT NOT NULL,
@@ -61,10 +28,6 @@ CREATE TABLE password_reset_tokens (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_prt_token (token)
 );
-
--- ============================================================
--- 4. USER PREFERENCES (one row per customer)
--- ============================================================
 CREATE TABLE user_preferences (
     user_id              INT NOT NULL PRIMARY KEY,
     punctuality_weight   INT NOT NULL DEFAULT 50,
@@ -75,10 +38,6 @@ CREATE TABLE user_preferences (
     updated_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
--- ============================================================
--- 5. PROVIDER INFO (one row per organiser)
--- ============================================================
 CREATE TABLE provider_info (
     provider_id               INT NOT NULL PRIMARY KEY,
     bio                       TEXT,
@@ -88,10 +47,6 @@ CREATE TABLE provider_info (
     updated_at                DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (provider_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
--- ============================================================
--- 6. APPOINTMENT TYPES
--- ============================================================
 CREATE TABLE appointment_types (
     id                           INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     organiser_id                 INT NOT NULL,
@@ -115,10 +70,6 @@ CREATE TABLE appointment_types (
     FOREIGN KEY (organiser_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_apt_organiser (organiser_id)
 );
-
--- ============================================================
--- 7. APPOINTMENT QUESTIONS
--- ============================================================
 CREATE TABLE appointment_questions (
     id                  INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     appointment_type_id INT NOT NULL,
@@ -128,14 +79,10 @@ CREATE TABLE appointment_questions (
     FOREIGN KEY (appointment_type_id) REFERENCES appointment_types(id) ON DELETE CASCADE,
     INDEX idx_aq_apt (appointment_type_id)
 );
-
--- ============================================================
--- 8. WORKING HOURS
--- ============================================================
 CREATE TABLE working_hours (
     id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     organiser_id  INT NOT NULL,
-    day_of_week   TINYINT NOT NULL,  -- 0=Mon, 6=Sun
+    day_of_week   TINYINT NOT NULL,
     start_time    TIME NOT NULL,
     end_time      TIME NOT NULL,
     is_active     BOOLEAN NOT NULL DEFAULT TRUE,
@@ -143,10 +90,6 @@ CREATE TABLE working_hours (
     UNIQUE KEY uq_organiser_day (organiser_id, day_of_week),
     INDEX idx_wh_organiser (organiser_id)
 );
-
--- ============================================================
--- 9. SLOTS
--- ============================================================
 CREATE TABLE slots (
     id                  INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     appointment_type_id INT NOT NULL,
@@ -160,28 +103,23 @@ CREATE TABLE slots (
     FOREIGN KEY (organiser_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_slots_organiser_start (organiser_id, slot_start)
 );
-
--- ============================================================
--- 10. BOOKINGS
--- ============================================================
 CREATE TABLE bookings (
     id                   INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     slot_id              INT NOT NULL,
     customer_id          INT NOT NULL,
-    status               ENUM('pending','confirmed','cancelled','completed','no_show') NOT NULL DEFAULT 'confirmed',
+    status               ENUM('draft','pending','confirmed','cancelled','completed','no_show') NOT NULL DEFAULT 'confirmed',
+    payment_status       ENUM('unpaid','partial','paid','refunded') NOT NULL DEFAULT 'unpaid',
+    payment_id           VARCHAR(100),
+    expires_at           DATETIME,
     booked_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     cancelled_at         DATETIME,
     cancellation_reason  TEXT,
     FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE RESTRICT,
     FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE RESTRICT,
-    UNIQUE KEY uq_slot_customer (slot_id, customer_id),  -- prevents double booking
+    UNIQUE KEY uq_slot_customer (slot_id, customer_id),
     INDEX idx_bookings_customer (customer_id),
     INDEX idx_bookings_slot (slot_id)
 );
-
--- ============================================================
--- 11. BOOKING ANSWERS
--- ============================================================
 CREATE TABLE booking_answers (
     id           INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     booking_id   INT NOT NULL,
@@ -191,10 +129,6 @@ CREATE TABLE booking_answers (
     FOREIGN KEY (question_id) REFERENCES appointment_questions(id) ON DELETE CASCADE,
     INDEX idx_ba_booking (booking_id)
 );
-
--- ============================================================
--- 12. APPOINTMENT FEEDBACK (no user_id — privacy by design)
--- ============================================================
 CREATE TABLE appointment_feedback (
     id                  INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     booking_id          INT NOT NULL UNIQUE,
@@ -208,10 +142,6 @@ CREATE TABLE appointment_feedback (
     submitted_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 );
-
--- ============================================================
--- 13. PROVIDER BEHAVIORAL SCORES (pre-computed aggregates)
--- ============================================================
 CREATE TABLE provider_behavioral_scores (
     provider_id       INT NOT NULL PRIMARY KEY,
     punctuality_score DECIMAL(3,2) DEFAULT 0,
@@ -223,10 +153,6 @@ CREATE TABLE provider_behavioral_scores (
     last_updated      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (provider_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
--- ============================================================
--- SEED: default admin (password: Admin@123)
--- ============================================================
 INSERT INTO users (full_name, email, password_hash, role, is_active, is_verified)
 VALUES (
     'System Admin',

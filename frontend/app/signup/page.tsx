@@ -15,9 +15,11 @@ import {
 } from "@/components/ui/select"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { api } from "@/lib/api"
+import { useAuth } from "@/components/providers/auth-provider"
 
 export default function SignupPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -48,8 +50,7 @@ export default function SignupPage() {
     try {
       const data = await api.auth.verifyOtp(email, otp)
       const d = data as { token: string; user: { id: number; full_name: string; email: string; role: string } }
-      localStorage.setItem("token", d.token)
-      localStorage.setItem("user", JSON.stringify(d.user))
+      login(d.token, d.user)
       router.push(role === "organiser" ? "/organiser" : "/dashboard")
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "OTP verification failed")

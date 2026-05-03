@@ -2,14 +2,14 @@
 
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
-import { getUser } from "@/lib/api"
+import { useAuth } from "@/components/providers/auth-provider"
 import { useEffect, useState } from "react"
 
 export function CustomerHeader() {
+  const { user } = useAuth()
   const [initials, setInitials] = useState("...")
 
   useEffect(() => {
-    const user = getUser()
     if (user && user.full_name) {
       const parts = user.full_name.split(" ")
       const init = parts.length > 1 

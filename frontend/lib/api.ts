@@ -1,4 +1,4 @@
-const BASE = "http://127.0.0.1:5000/api";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000/api";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -32,6 +32,12 @@ async function request<T>(
   const json = await res.json();
 
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      const isAuthPage = window.location.pathname.startsWith('/login') || window.location.pathname.startsWith('/signup');
+      if (!isAuthPage) {
+        logout();
+      }
+    }
     throw new Error(json.error || "Request failed");
   }
   return json.data as T;
@@ -64,6 +70,11 @@ export const api = {
       request<{ message: string }>("/auth/forgot-password", {
         method: "POST",
         body: JSON.stringify({ email }),
+      }),
+    changePassword: (current_password: string, new_password: string) =>
+      request<{ message: string }>("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ current_password, new_password }),
       }),
   },
 
@@ -194,7 +205,18 @@ export const api = {
   admin: {
     stats: () => request<AdminStats>("/admin/stats"),
     recentBookings: () => request<AdminRecentBooking[]>("/admin/recent-bookings"),
-    users: () => request<AdminUser[]>("/admin/users"),
+    users: (params?: { page?: number; limit?: number; search?: string; role?: string; is_active?: string }) => {
+      const q = new URLSearchParams()
+      if (params?.page) q.append("page", params.page.toString())
+      if (params?.limit) q.append("limit", params.limit.toString())
+      if (params?.search) q.append("search", params.search)
+      if (params?.role && params.role !== "all") q.append("role", params.role)
+      if (params?.is_active) q.append("is_active", params.is_active)
+      return request<{
+        data: AdminUser[];
+        pagination: { page: number; limit: number; total: number; total_pages: number }
+      }>(`/admin/users?${q.toString()}`)
+    },
     toggleActive: (user_id: number) => request<{ message: string; is_active: boolean }>(`/admin/users/${user_id}/toggle-active`, { method: "PATCH" }),
     bookings: () => request<AdminBooking[]>("/admin/bookings"),
   },

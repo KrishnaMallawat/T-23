@@ -89,6 +89,12 @@ export default function OrganiserHoursPage() {
     setSaving(true)
     setMsg("")
     try {
+      for (const d of workingHours) {
+        if (d.enabled && d.start >= d.end) {
+          throw new Error(`Invalid time for ${d.name}. Start time must be before end time.`)
+        }
+      }
+
       await Promise.all(
         workingHours.map(d => 
           api.organiser.setWorkingHour({
@@ -111,6 +117,7 @@ export default function OrganiserHoursPage() {
     setGenMsg("")
     if (!selectedService) { setGenMsg("Please select a service"); return }
     if (!startDate || !endDate) { setGenMsg("Start and End dates are required"); return }
+    if (new Date(endDate) < new Date(startDate)) { setGenMsg("End date must be on or after start date"); return }
 
     setGenerating(true)
     try {

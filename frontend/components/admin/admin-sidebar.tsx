@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Users,
@@ -23,6 +23,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { useAuth } from "@/components/providers/auth-provider"
 
 const navItems = [
   { title: "Overview", href: "/admin", icon: LayoutDashboard },
@@ -34,11 +35,10 @@ const navItems = [
 export function AdminSidebar() {
   const pathname = usePathname()
 
-  const router = useRouter()
+  const { logout } = useAuth()
 
   const handleLogout = () => {
-    localStorage.removeItem("token")
-    router.push("/login")
+    logout()
   }
 
   return (

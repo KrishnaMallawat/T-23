@@ -82,6 +82,12 @@ function CheckoutContent() {
         }
 
         // 2. Initialize Real Razorpay
+        if (!(window as any).Razorpay) {
+          setError("Payment gateway is still loading or was blocked by an ad-blocker. Please try again.")
+          setProcessing(false)
+          return
+        }
+        
         const options = {
           key: orderData.key,
           amount: orderData.amount,

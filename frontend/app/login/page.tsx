@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { api } from "@/lib/api"
+import { useAuth } from "@/components/providers/auth-provider"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -22,8 +24,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const data = await api.auth.login(email, password)
-      localStorage.setItem("token", data.token)
-      localStorage.setItem("user", JSON.stringify(data.user))
+      login(data.token, data.user)
       if (data.user.role === "organiser") router.push("/organiser")
       else if (data.user.role === "admin") router.push("/admin")
       else router.push("/dashboard")
