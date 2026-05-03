@@ -23,6 +23,7 @@ def create_booking():
         SELECT s.id, s.organiser_id, s.capacity, s.booked_count, s.status,
                s.slot_start, s.slot_end, s.appointment_type_id,
                at.title AS service_title, at.manual_confirmation,
+               at.payment_requirement, at.payment_amount,
                u.full_name AS organiser_name, u.email AS organiser_email
         FROM slots s
         JOIN appointment_types at ON at.id = s.appointment_type_id
@@ -98,11 +99,14 @@ def create_booking():
     except Exception as e:
         print(f"[EMAIL ERROR] {e}")
 
-    booking = db.execute("SELECT id, status, booked_at FROM bookings WHERE id=%s", (booking_id,), fetch="one")
+    booking = db.execute("SELECT id, status, payment_status, booked_at FROM bookings WHERE id=%s", (booking_id,), fetch="one")
     return success({
-        "booking_id": booking["id"],
-        "status":     booking["status"],
-        "message":    "Booking confirmed!" if initial_status == "confirmed" else "Booking submitted, awaiting confirmation.",
+        "booking_id":          booking["id"],
+        "status":              booking["status"],
+        "payment_status":      booking["payment_status"],
+        "payment_required":    slot["payment_requirement"] != "none",
+        "payment_amount":      float(slot["payment_amount"] or 0),
+        "message":             "Booking confirmed!" if initial_status == "confirmed" else "Booking submitted, awaiting confirmation.",
     }, 201)
 
 
@@ -111,9 +115,10 @@ def create_booking():
 def my_bookings():
     rows = db.execute(
         """
-        SELECT b.id, b.status, b.booked_at, b.cancelled_at, b.cancellation_reason, b.slot_id,
+        SELECT b.id, b.status, b.payment_status, b.booked_at, b.cancelled_at, b.cancellation_reason, b.slot_id,
                s.slot_start, s.slot_end, s.organiser_id,
                at.id AS appt_type_id, at.title AS service_title, at.duration_mins,
+               at.payment_requirement, at.payment_amount,
                u.full_name AS organiser_name,
                (SELECT COUNT(*) FROM appointment_feedback af WHERE af.booking_id=b.id) > 0 AS has_feedback
         FROM bookings b
@@ -133,9 +138,9 @@ def my_bookings():
 def organiser_bookings():
     status_filter = request.args.get("status")
     query = """
-        SELECT b.id, b.status, b.booked_at, b.cancellation_reason,
+        SELECT b.id, b.status, b.payment_status, b.booked_at, b.cancellation_reason,
                s.slot_start, s.slot_end,
-               at.title AS service_title,
+               at.title AS service_title, at.payment_requirement, at.payment_amount,
                u.full_name AS customer_name, u.email AS customer_email,
                af.punctuality_rating, af.quality_rating, af.environment_rating,
                af.parking_rating, af.accessibility_rating,
@@ -281,3 +286,44 @@ def mark_no_show(booking_id):
 
     db.execute("UPDATE bookings SET status='no_show' WHERE id=%s", (booking_id,))
     return success({"message": "Marked as no-show."})
+
+
+@bookings_bp.route("/bookings/<int:booking_id>/complete", methods=["PATCH"])
+@login_required
+def mark_complete(booking_id):
+    booking = db.execute(
+        "SELECT b.id, b.status, b.customer_id, s.organiser_id FROM bookings b JOIN slots s ON s.id=b.slot_id WHERE b.id=%s",
+        (booking_id,), fetch="one",
+    )
+    if not booking:
+        return error("Booking not found", 404)
+    if booking["organiser_id"] != request.user_id and booking["customer_id"] != request.user_id:
+        return error("Forbidden", 403)
+    if booking["status"] != "confirmed":
+        return error("Only confirmed bookings can be marked complete")
+
+    db.execute("UPDATE bookings SET status='completed' WHERE id=%s", (booking_id,))
+    return success({"message": "Booking marked as completed."})
+
+
+@bookings_bp.route("/bookings/<int:booking_id>/payment", methods=["PATCH"])
+@login_required
+def update_payment(booking_id):
+    """Mock payment endpoint — updates payment_status for testing."""
+    data = request.get_json(silent=True) or {}
+    new_status = data.get("payment_status")
+
+    if new_status not in ("paid", "refunded", "unpaid"):
+        return error("payment_status must be paid, refunded, or unpaid")
+
+    booking = db.execute(
+        "SELECT b.id, b.customer_id, s.organiser_id FROM bookings b JOIN slots s ON s.id=b.slot_id WHERE b.id=%s",
+        (booking_id,), fetch="one",
+    )
+    if not booking:
+        return error("Booking not found", 404)
+    if booking["customer_id"] != request.user_id and booking["organiser_id"] != request.user_id:
+        return error("Forbidden", 403)
+
+    db.execute("UPDATE bookings SET payment_status=%s WHERE id=%s", (new_status, booking_id))
+    return success({"message": f"Payment marked as {new_status}.", "payment_status": new_status})

@@ -50,8 +50,14 @@ function bookingCard(b) {
 
   const actions = [];
   if (isUpcoming) {
+    if (b.status === 'confirmed') {
+      actions.push(`<button class="btn btn-primary btn-sm" onclick="markComplete(${b.id})">✔️ Mark Complete</button>`);
+    }
     actions.push(`<button class="btn btn-ghost btn-sm" onclick="openReschedule(${b.id}, ${b.slot_id||0})">🔄 Reschedule</button>`);
     actions.push(`<button class="btn btn-danger btn-sm" onclick="openCancel(${b.id})">✕ Cancel</button>`);
+  }
+  if (isUpcoming && b.payment_requirement !== 'none' && b.payment_amount > 0 && b.payment_status !== 'paid') {
+    actions.push(`<button class="btn btn-primary btn-sm" onclick="openPayment(${b.id}, ${b.payment_amount})">💳 Pay ₹${b.payment_amount}</button>`);
   }
   if (isCompleted && !b.has_feedback) {
     actions.push(`<a href="/feedback?booking_id=${b.id}" class="btn btn-secondary btn-sm">⭐ Leave Feedback</a>`);
@@ -59,6 +65,14 @@ function bookingCard(b) {
   if (b.status === 'cancelled' && b.cancellation_reason) {
     actions.push(`<button class="btn btn-ghost btn-sm" onclick="viewReason(${b.id})">💬 View Reason</button>`);
   }
+
+  const payBadge = b.payment_requirement !== 'none' && b.payment_amount > 0
+    ? b.payment_status === 'paid'
+      ? '<span class="badge badge-confirmed">💳 Paid</span>'
+      : b.payment_status === 'refunded'
+        ? '<span class="badge badge-draft">↩️ Refunded</span>'
+        : '<span class="badge badge-pending">💳 Unpaid</span>'
+    : '';
 
   var providerLink = b.organiser_id ? '/provider?id=' + b.organiser_id : '#';
 
@@ -68,6 +82,7 @@ function bookingCard(b) {
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
           <span class="badge ${statusCls}">${statusLabel}</span>
+          ${payBadge}
           ${b.has_feedback ? '<span class="badge badge-confirmed">✅ Reviewed</span>' : ''}
         </div>
         <h4 style="margin-bottom:2px">${b.service_title}</h4>
@@ -78,6 +93,13 @@ function bookingCard(b) {
           <span>⏱️ ${b.duration_mins} min</span>
         </div>
         ${b.cancelled_at ? '<p style="font-size:12px;color:var(--danger);margin-top:6px">Cancelled on ' + fmtDate(b.cancelled_at) + '</p>' : ''}
+        ${isCompleted && !b.has_feedback ? `
+          <div style="margin-top:12px;padding:12px 16px;background:linear-gradient(135deg, var(--purple-50), var(--purple-100));border-radius:var(--radius-sm);border:1px solid var(--purple-200);display:flex;align-items:center;justify-content:space-between;gap:12px" onclick="event.preventDefault();event.stopPropagation()">
+            <div style="font-size:13px;color:var(--purple-700)">
+              <strong>Session Complete!</strong> Your feedback helps improve the service.
+            </div>
+            <a href="/feedback?booking_id=${b.id}" class="btn btn-primary btn-sm" style="white-space:nowrap">⭐ Leave Feedback</a>
+          </div>` : ''}
       </div>
       ${actions.length ? '<div style="display:flex;gap:8px;flex-wrap:wrap" onclick="event.preventDefault();event.stopPropagation()">' + actions.join('') + '</div>' : ''}
     </div>
@@ -172,11 +194,49 @@ async function doReschedule() {
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
+async function markComplete(id) {
+  if (!confirm('Mark this session as completed?')) return;
+  try {
+    await api('/api/bookings/' + id + '/complete', { method:'PATCH' });
+    toast('Session completed! Please leave your feedback.', 'success');
+    allBookings = await api('/api/bookings/mine');
+    renderBookings();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
 function viewReason(id) {
   const b = allBookings.find(x => x.id === id);
   if (!b) return;
   document.getElementById('reason-text').textContent = b.cancellation_reason || 'No reason provided.';
   openModal('reason-modal');
+}
+
+let payBookingId = null;
+
+function openPayment(bookingId, amount) {
+  payBookingId = bookingId;
+  document.getElementById('pay-amount').textContent = '₹' + amount;
+  document.getElementById('pay-confirm-btn').disabled = false;
+  document.getElementById('pay-confirm-btn').textContent = '✅ Confirm Payment';
+  openModal('payment-modal');
+}
+
+async function doPayment(status) {
+  const btn = document.getElementById('pay-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Processing…';
+  try {
+    await api('/api/bookings/' + payBookingId + '/payment', {
+      method: 'PATCH',
+      body: { payment_status: status }
+    });
+    toast(status === 'paid' ? 'Payment confirmed! 💳' : 'Payment skipped.', status === 'paid' ? 'success' : 'error');
+    closeModal('payment-modal');
+    allBookings = await api('/api/bookings/mine');
+    renderBookings();
+  } catch(err) {
+    toast(err.message, 'error');
+    btn.disabled = false; btn.textContent = '✅ Confirm Payment';
+  }
 }
 
 init();

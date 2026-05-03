@@ -168,11 +168,82 @@ async function confirmBooking() {
   btn.disabled = true; btn.textContent = 'Booking…';
   try {
     const res = await api('/api/bookings', { method:'POST', body:{ slot_id: selSlot.id, answers } });
-    toast(res.message || 'Booking confirmed!', 'success');
-    setTimeout(() => window.location.href = '/my-bookings.html', 1500);
+
+    if (res.payment_required && res.payment_amount > 0) {
+      showPaymentStep(res.booking_id, res.payment_amount);
+    } else {
+      toast(res.message || 'Booking confirmed!', 'success');
+      setTimeout(() => window.location.href = '/my-bookings.html', 1500);
+    }
   } catch(err) {
     toast(err.message, 'error');
     btn.disabled = false; btn.textContent = 'Confirm Booking →';
+  }
+}
+
+function showPaymentStep(bookingId, amount) {
+  document.getElementById('booking-container').innerHTML = `
+    <div class="card card-elevated" style="padding:40px;text-align:center;max-width:480px;margin:40px auto">
+      <div style="font-size:3rem;margin-bottom:16px">💳</div>
+      <h2 style="margin-bottom:8px">Payment Required</h2>
+      <p style="color:var(--gray-600);margin-bottom:24px">Complete your payment to finalize the booking.</p>
+      
+      <div style="background:var(--purple-50);border-radius:var(--radius);padding:20px;margin-bottom:28px;border:1px solid var(--purple-200)">
+        <div style="font-size:13px;color:var(--gray-600);margin-bottom:4px">Amount Due</div>
+        <div style="font-size:2.5rem;font-weight:800;color:var(--purple-700)">₹${amount}</div>
+      </div>
+
+      <div style="background:var(--gray-100);border-radius:var(--radius-sm);padding:16px;margin-bottom:24px;font-size:13px;color:var(--gray-600);text-align:left">
+        <div style="font-weight:600;color:var(--gray-800);margin-bottom:8px">🧪 Test Mode</div>
+        <p>No real payment is processed. Use the buttons below to simulate a payment outcome.</p>
+      </div>
+
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap" id="payment-actions">
+        <button class="btn btn-primary btn-lg" id="pay-confirm-btn" onclick="mockPayment(${bookingId}, 'paid')" style="min-width:180px">
+          ✅ Confirm Payment
+        </button>
+        <button class="btn btn-ghost btn-lg" id="pay-cancel-btn" onclick="mockPayment(${bookingId}, 'unpaid')" style="min-width:180px">
+          ✕ Cancel Payment
+        </button>
+      </div>
+    </div>`;
+}
+
+async function mockPayment(bookingId, status) {
+  const confirmBtn = document.getElementById('pay-confirm-btn');
+  const cancelBtn  = document.getElementById('pay-cancel-btn');
+  confirmBtn.disabled = true; cancelBtn.disabled = true;
+  confirmBtn.textContent = status === 'paid' ? 'Processing…' : '✅ Confirm Payment';
+  cancelBtn.textContent  = status === 'unpaid' ? 'Cancelling…' : '✕ Cancel Payment';
+
+  try {
+    await api('/api/bookings/' + bookingId + '/payment', {
+      method: 'PATCH',
+      body: { payment_status: status }
+    });
+
+    if (status === 'paid') {
+      document.getElementById('payment-actions').innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div style="width:64px;height:64px;background:var(--success-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px">✅</div>
+          <h3 style="color:var(--success)">Payment Successful!</h3>
+          <p class="text-muted">Redirecting to your bookings…</p>
+        </div>`;
+      setTimeout(() => window.location.href = '/my-bookings.html', 2000);
+    } else {
+      document.getElementById('payment-actions').innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div style="width:64px;height:64px;background:var(--warning-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px">⏳</div>
+          <h3 style="color:var(--warning)">Payment Skipped</h3>
+          <p class="text-muted">You can pay later from your bookings page.</p>
+          <a href="/my-bookings.html" class="btn btn-secondary mt-16">Go to My Bookings</a>
+        </div>`;
+    }
+  } catch(err) {
+    toast(err.message, 'error');
+    confirmBtn.disabled = false; cancelBtn.disabled = false;
+    confirmBtn.textContent = '✅ Confirm Payment';
+    cancelBtn.textContent = '✕ Cancel Payment';
   }
 }
 

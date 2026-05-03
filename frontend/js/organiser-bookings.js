@@ -48,14 +48,23 @@ function render() {
               <div style="font-size:14px">${fmtDate(b.slot_start)}</div>
               <div style="font-size:12px;color:var(--gray-600)">${fmtTime(b.slot_start)} – ${fmtTime(b.slot_end)}</div>
             </td>
-            <td><span class="badge badge-${b.status}">${b.status.replace('_',' ')}</span></td>
+            <td>
+              <span class="badge badge-${b.status}">${b.status.replace('_',' ')}</span>
+              ${b.payment_requirement !== 'none' && b.payment_amount > 0
+                ? b.payment_status === 'paid'
+                  ? '<span class="badge badge-confirmed" style="margin-left:4px">💳 Paid</span>'
+                  : '<span class="badge badge-pending" style="margin-left:4px">💳 Unpaid</span>'
+                : ''}
+            </td>
             <td>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
                 ${b.status === 'pending'   ? `<button class="btn btn-primary btn-sm" onclick="confirmBooking(${b.id})">✅ Confirm</button>` : ''}
+                ${b.status === 'confirmed' ? `<button class="btn btn-primary btn-sm" onclick="markComplete(${b.id})">✔️ Complete</button>` : ''}
                 ${b.status === 'confirmed' ? `<button class="btn btn-ghost btn-sm" onclick="markNoShow(${b.id})">👻 No-show</button>` : ''}
                 ${['pending','confirmed'].includes(b.status) ? `<button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">✕ Cancel</button>` : ''}
                 ${b.status === 'cancelled' ? `<button class="btn btn-ghost btn-sm" onclick="viewReason(${b.id})">💬 View Reason</button>` : ''}
                 ${b.status === 'completed' && b.punctuality_rating !== null ? `<button class="btn btn-secondary btn-sm" onclick="viewFeedback(${b.id})">⭐ View Feedback</button>` : ''}
+                ${b.status === 'completed' && b.punctuality_rating === null ? '<span class="text-muted" style="font-size:12px;padding:6px 0">⏳ Awaiting feedback</span>' : ''}
                 ${b.answers && b.answers.length > 0 ? `<button class="btn btn-ghost btn-sm" onclick="viewForm(${b.id})">📝 View Form</button>` : ''}
               </div>
             </td>
@@ -79,6 +88,15 @@ async function markNoShow(id) {
   try {
     await api('/api/bookings/' + id + '/no-show', { method:'PATCH' });
     toast('Marked as no-show.', 'success');
+    loadBookings();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function markComplete(id) {
+  if (!confirm('Mark this booking as completed? The customer will be prompted to leave feedback.')) return;
+  try {
+    await api('/api/bookings/' + id + '/complete', { method:'PATCH' });
+    toast('Booking completed! Customer will be prompted for feedback.', 'success');
     loadBookings();
   } catch(err) { toast(err.message, 'error'); }
 }
